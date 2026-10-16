@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Điền từ Cloudinary Console. Upload preset phải là loại "Unsigned".
+         Tuyệt đối KHÔNG đặt API secret của Cloudinary vào app. -->
+    <string name="cloudinary_cloud_name" translatable="false">YOUR_CLOUD_NAME</string>
+    <string name="cloudinary_upload_preset" translatable="false">YOUR_UNSIGNED_PRESET</string>
+</resources>

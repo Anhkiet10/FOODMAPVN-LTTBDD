@@ -1,0 +1,76 @@
+rules_version = '2';
+
+// Security Rules cho Food Map VN.
+// Dán nội dung này vào Firebase Console > Firestore Database > Rules > Publish.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+    function isAdmin() {
+      return signedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    function onlyChanges(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+
+    // Danh mục: ai cũng xem được (kể cả Khách), chỉ Admin sửa
+    match /regions/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /dishes/{id}  { allow read: if true; allow write: if isAdmin(); }
+    match /config/{id}  { allow read: if true; allow write: if isAdmin(); }
+
+    // Quán: Admin tạo/xoá (khi duyệt đề xuất). Vì điểm uy tín đang tính trong app,
+    // người dùng đăng nhập chỉ được cập nhật các trường số liệu (hạn chế đã ghi trong báo cáo).
+    match /places/{id} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (signedIn() && onlyChanges(
+        ['trustScore', 'ratingAvg', 'reviewCount', 'checkInCount', 'priceWarning', 'isVerified']));
+    }
+
+    // Đánh giá: id = "{placeId}_{uid}" → mỗi người 1 đánh giá / quán (BR-04)
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create, update: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && reviewId == request.resource.data.placeId + '_' + request.auth.uid
+        && request.resource.data.stars is int
+        && request.resource.data.stars >= 1 && request.resource.data.stars <= 5;
+      allow delete: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    // Check-in: chỉ tạo cho chính mình, không sửa được
+    match /checkins/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // Hồ sơ: chỉ chủ tài khoản và Admin; người dùng không tự đổi role/status
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid) && request.resource.data.role == 'user';
+      allow update: if isAdmin() ||
+        (isOwner(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status']));
+
+      // wishlist, savedPlaces, badges, notifications
+      match /{sub=**} { allow read, write: if isOwner(uid) || isAdmin(); }
+    }
+
+    // Đề xuất quán: người dùng gửi, Admin duyệt
+    match /suggestions/{id} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'pending';
+      allow update, delete: if isAdmin();
+    }
+
+    // Báo cáo vi phạm: người dùng gửi, chỉ Admin xem và xử lý
+    match /reports/{id} {
+      allow create: if signedIn() && request.resource.data.reporterId == request.auth.uid;
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}

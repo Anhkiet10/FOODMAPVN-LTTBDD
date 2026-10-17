@@ -1,0 +1,255 @@
+rules_version = '2';
+
+// =====================================================================
+//  Firestore Security Rules – Food Map VN
+//  Vai trò tương đương file .sql bên SQL:
+//    - Kiểu dữ liệu, NOT NULL, CHECK  -> các hàm isValid...() bên dưới
+//    - FOREIGN KEY                    -> existsAfter(...) tới document được tham chiếu
+//    - UNIQUE                         -> ID document (xem mục 8.1 tài liệu đặc tả)
+//    - Phân quyền                     -> allow read / write
+//  Từ điển dữ liệu: mục 8.2 tài liệu đặc tả.
+//  Dán vào Firebase Console > Firestore Database > Rules > Publish.
+// =====================================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Quyền ----------
+    function signedIn() { return request.auth != null; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+    function isAdmin() {
+      return signedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    function onlyChanges(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+
+    // ---------- Kiểu dữ liệu (≈ kiểu cột + NOT NULL) ----------
+    // req...: trường bắt buộc, đúng kiểu.   opt...: được thiếu hoặc null, nếu có phải đúng kiểu.
+    function reqStr(d, k)  { return k in d && d[k] is string && d[k].size() > 0; }
+    function reqInt(d, k)  { return k in d && d[k] is int && d[k] >= 0; }
+    function reqNum(d, k)  { return k in d && d[k] is number && d[k] >= 0; }
+    function reqBool(d, k) { return k in d && d[k] is bool; }
+    function reqTime(d, k) { return k in d && d[k] is timestamp; }
+    function reqGeo(d, k)  { return k in d && d[k] is latlng; }
+    function reqList(d, k) { return k in d && d[k] is list; }
+    function reqMap(d, k)  { return k in d && d[k] is map; }
+    function optStr(d, k)  { return !(k in d) || d[k] == null || d[k] is string; }
+    function optInt(d, k)  { return !(k in d) || d[k] == null || (d[k] is int && d[k] >= 0); }
+    function optNum(d, k)  { return !(k in d) || d[k] == null || d[k] is number; }
+    function optBool(d, k) { return !(k in d) || d[k] == null || d[k] is bool; }
+    function optTime(d, k) { return !(k in d) || d[k] == null || d[k] is timestamp; }
+    function optList(d, k) { return !(k in d) || d[k] == null || d[k] is list; }
+    // ≈ CHECK (cot IN (...))
+    function oneOf(d, k, values) { return k in d && d[k] in values; }
+
+    // ---------- Khóa ngoại ----------
+    function regionExists(id) { return existsAfter(/databases/$(database)/documents/regions/$(id)); }
+    function placeExists(id)  { return existsAfter(/databases/$(database)/documents/places/$(id)); }
+
+    // ---------- Lược đồ từng collection (mục 8.2) ----------
+    function isValidRegion(d) {
+      return reqStr(d, 'name') && reqGeo(d, 'center')
+        && reqInt(d, 'dishCount') && reqInt(d, 'placeCount')
+        && oneOf(d, 'status', ['active', 'hidden'])
+        && optBool(d, 'isOpenNow') && optList(d, 'quickFilters');
+    }
+
+    function isValidDish(d) {
+      return reqStr(d, 'regionId') && reqStr(d, 'name')
+        && oneOf(d, 'unit', ['tô', 'cốc', 'đĩa', 'phần'])
+        && reqInt(d, 'verifiedPlaceCount')
+        && oneOf(d, 'status', ['active', 'hidden'])
+        && (!('art' in d) || d.art in ['BUN_BO', 'CHE', 'COM_HEN'])
+        && optStr(d, 'description') && optStr(d, 'bestTime') && optStr(d, 'imageUrl') && optStr(d, 'nearestHint')
+        && optList(d, 'tips') && optList(d, 'photos')
+        && optInt(d, 'priceP25') && optInt(d, 'priceP75');
+    }
+
+    function isValidPlace(d) {
+      return reqStr(d, 'regionId') && reqStr(d, 'name') && reqStr(d, 'address')
+        && reqGeo(d, 'location')
+        && oneOf(d, 'status', ['active', 'hidden', 'closed'])
+        && reqInt(d, 'trustScore') && d.trustScore <= 100
+        && reqBool(d, 'isVerified') && reqBool(d, 'priceWarning')
+        && reqInt(d, 'reviewCount') && reqInt(d, 'checkInCount')
+        && reqList(d, 'dishIds') && reqTime(d, 'createdAt')
+        && optStr(d, 'openTime') && optStr(d, 'closeTime') && optStr(d, 'suggestedBy')
+        && optNum(d, 'ratingAvg') && optList(d, 'menu') && optList(d, 'photos');
+    }
+
+    function isValidReview(d) {
+      return reqStr(d, 'placeId') && reqStr(d, 'placeName')
+        && reqStr(d, 'userId') && reqStr(d, 'userName')
+        && 'stars' in d && d.stars is int && d.stars >= 1 && d.stars <= 5
+        && reqBool(d, 'hasCheckIn') && reqBool(d, 'isLocal')
+        && reqInt(d, 'helpfulCount')
+        && oneOf(d, 'status', ['visible', 'hidden'])
+        && reqTime(d, 'createdAt') && optTime(d, 'updatedAt')
+        && (!('content' in d) || d.content == null || (d.content is string && d.content.size() <= 1000))
+        && (!('photos' in d) || d.photos == null || (d.photos is list && d.photos.size() <= 5))
+        && optInt(d, 'price') && optStr(d, 'userAvatar');
+    }
+
+    function isValidCheckIn(d) {
+      return reqStr(d, 'userId') && reqStr(d, 'placeId') && reqStr(d, 'regionId')
+        && reqGeo(d, 'location') && reqNum(d, 'distanceM') && reqBool(d, 'valid')
+        && reqTime(d, 'createdAt') && optStr(d, 'dishId') && optInt(d, 'price');
+    }
+
+    function isValidUser(d) {
+      return reqStr(d, 'name') && reqStr(d, 'email')
+        && oneOf(d, 'role', ['user', 'admin'])
+        && oneOf(d, 'status', ['active', 'locked'])
+        && reqMap(d, 'stats') && reqTime(d, 'createdAt')
+        && optStr(d, 'avatarUrl') && optStr(d, 'localBadge');
+    }
+
+    function isValidWishlist(d) {
+      return reqStr(d, 'dishName') && reqStr(d, 'regionId')
+        && reqBool(d, 'eaten') && reqTime(d, 'addedAt') && optTime(d, 'eatenAt')
+        && optStr(d, 'placeId') && optStr(d, 'placeName') && optStr(d, 'distanceHint')
+        && optStr(d, 'art') && optStr(d, 'imageUrl');
+    }
+
+    function isValidSavedPlace(d) {
+      return reqStr(d, 'name') && reqStr(d, 'dishName')
+        && reqInt(d, 'trustScore') && reqTime(d, 'savedAt')
+        && optStr(d, 'distanceHint') && optStr(d, 'art') && optStr(d, 'imageUrl');
+    }
+
+    function isValidBadge(d) {
+      return reqStr(d, 'regionName') && reqInt(d, 'checkIns') && reqInt(d, 'placeCount')
+        && reqBool(d, 'achieved') && optTime(d, 'achievedAt');
+    }
+
+    function isValidNotification(d) {
+      return oneOf(d, 'type', ['SUGGESTION_APPROVED', 'SUGGESTION_REJECTED', 'BADGE', 'HELPFUL', 'PRICE_WARNING'])
+        && reqStr(d, 'title') && reqBool(d, 'read') && reqTime(d, 'createdAt')
+        && optStr(d, 'body') && optStr(d, 'refId');
+    }
+
+    function isValidSuggestion(d) {
+      return reqStr(d, 'userId') && reqStr(d, 'regionId') && reqStr(d, 'dishId')
+        && reqStr(d, 'name') && reqStr(d, 'address') && reqGeo(d, 'location')
+        && oneOf(d, 'status', ['pending', 'approved', 'rejected'])
+        && (d.status != 'rejected' || reqStr(d, 'rejectReason'))
+        && reqTime(d, 'createdAt') && optTime(d, 'reviewedAt')
+        && optInt(d, 'price') && optStr(d, 'openHours') && optStr(d, 'photoUrl')
+        && optStr(d, 'rejectReason') && optStr(d, 'reviewedBy') && optStr(d, 'placeId');
+    }
+
+    function isValidReport(d) {
+      return reqStr(d, 'reporterId') && reqStr(d, 'targetId')
+        && oneOf(d, 'targetType', ['PLACE', 'REVIEW'])
+        && oneOf(d, 'reason', ['WRONG_PRICE', 'BAD_CONTENT', 'NOT_EXIST', 'OTHER'])
+        && oneOf(d, 'status', ['pending', 'resolved', 'dismissed'])
+        && reqTime(d, 'createdAt')
+        && optStr(d, 'description') && optStr(d, 'handledBy') && optStr(d, 'result');
+    }
+
+    // =================== Danh mục: ai cũng xem, chỉ Admin ghi ===================
+    match /regions/{id} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidRegion(request.resource.data);
+      allow delete: if isAdmin();
+    }
+    match /dishes/{id} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidDish(request.resource.data)
+        && regionExists(request.resource.data.regionId);
+      allow delete: if isAdmin();
+    }
+    match /config/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Quán: Admin tạo/xoá. Điểm uy tín đang tính trong app nên người dùng đăng nhập
+    // được cập nhật các trường số liệu (hạn chế đã ghi ở NFR-06).
+    match /places/{id} {
+      allow read: if true;
+      allow delete: if isAdmin();
+      allow create: if isAdmin() && isValidPlace(request.resource.data)
+        && regionExists(request.resource.data.regionId);
+      allow update: if isValidPlace(request.resource.data) && (isAdmin() || (signedIn() && onlyChanges(
+        ['trustScore', 'ratingAvg', 'reviewCount', 'checkInCount', 'priceWarning', 'isVerified'])));
+    }
+
+    // Đánh giá: id = "{placeId}_{uid}" -> mỗi người 1 đánh giá / quán (BR-04)
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create, update: if isValidReview(request.resource.data) && (
+        isAdmin() || (
+          signedIn()
+          && request.resource.data.userId == request.auth.uid
+          && reviewId == request.resource.data.placeId + '_' + request.auth.uid))
+        && placeExists(request.resource.data.placeId);
+      allow delete: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+
+      match /helpful/{uid} {
+        allow read: if true;
+        allow create, delete: if isOwner(uid);
+      }
+    }
+
+    // Check-in: chỉ tạo cho chính mình, không sửa được
+    match /checkins/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && isValidCheckIn(request.resource.data)
+        && placeExists(request.resource.data.placeId);
+      allow update, delete: if isAdmin();
+    }
+
+    // Hồ sơ: chỉ chủ tài khoản và Admin; người dùng không tự đổi role/status
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid)
+        && request.resource.data.role == 'user'
+        && request.resource.data.status == 'active'
+        && isValidUser(request.resource.data);
+      allow update: if isValidUser(request.resource.data) && (isAdmin() || (isOwner(uid)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status'])));
+
+      match /wishlist/{dishId} {
+        allow read, delete: if isOwner(uid) || isAdmin();
+        allow create, update: if (isOwner(uid) || isAdmin()) && isValidWishlist(request.resource.data);
+      }
+      match /savedPlaces/{placeId} {
+        allow read, delete: if isOwner(uid) || isAdmin();
+        allow create, update: if (isOwner(uid) || isAdmin()) && isValidSavedPlace(request.resource.data);
+      }
+      match /badges/{regionId} {
+        allow read, delete: if isOwner(uid) || isAdmin();
+        allow create, update: if (isOwner(uid) || isAdmin()) && isValidBadge(request.resource.data);
+      }
+      match /notifications/{id} {
+        allow read, delete: if isOwner(uid) || isAdmin();
+        allow create, update: if (isOwner(uid) || isAdmin()) && isValidNotification(request.resource.data);
+      }
+    }
+
+    // Đề xuất quán: người dùng gửi (pending), Admin duyệt
+    match /suggestions/{id} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && isValidSuggestion(request.resource.data)
+        && regionExists(request.resource.data.regionId);
+      allow update: if isAdmin() && isValidSuggestion(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // Báo cáo vi phạm: người dùng gửi, chỉ Admin xem và xử lý
+    match /reports/{id} {
+      allow create: if signedIn()
+        && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && isValidReport(request.resource.data);
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}

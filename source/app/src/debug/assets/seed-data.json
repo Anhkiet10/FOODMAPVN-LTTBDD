@@ -1,0 +1,183 @@
+{
+  "_readme": "Dữ liệu mẫu cho Food Map VN (≈ phần INSERT INTO của file .sql). Tên quán, địa chỉ, toạ độ là DỮ LIỆU MẪU để demo, không phải thông tin thật. Quy ước: {\"_geo\": [vĩ độ, kinh độ]} = geopoint, {\"_serverTimestamp\": true} = thời điểm ghi, {\"_date\": \"yyyy-MM-dd\"} = timestamp. Tên trường theo mục 8.2 tài liệu đặc tả.",
+
+  "regions": {
+    "hue": {
+      "name": "Huế", "center": {"_geo": [16.4637, 107.5909]},
+      "dishCount": 7, "placeCount": 8, "isOpenNow": true,
+      "quickFilters": ["Bún bò", "Cơm hến", "Chè", "Bánh"], "status": "active"
+    },
+    "dak-lak": {
+      "name": "Đắk Lắk", "center": {"_geo": [12.6667, 108.0500]},
+      "dishCount": 0, "placeCount": 0, "isOpenNow": true, "quickFilters": [], "status": "active"
+    },
+    "can-tho": {
+      "name": "Cần Thơ", "center": {"_geo": [10.0452, 105.7469]},
+      "dishCount": 0, "placeCount": 0, "isOpenNow": true, "quickFilters": [], "status": "active"
+    }
+  },
+
+  "dishes": {
+    "bun-bo-hue": {
+      "regionId": "hue", "name": "Bún bò Huế",
+      "description": "Nước dùng hầm xương, thơm sả và mắm ruốc; ăn kèm giò heo, chả cua, bò tái và rau sống.",
+      "tips": ["Ăn buổi sáng 6–9h, nước dùng ngon nhất", "Trên 60.000đ/tô là cao hơn mặt bằng"],
+      "bestTime": "Ngon nhất buổi sáng", "unit": "tô", "art": "BUN_BO",
+      "priceP25": 35000, "priceP75": 50000, "verifiedPlaceCount": 12, "nearestHint": "350 m", "status": "active"
+    },
+    "che-hue": {
+      "regionId": "hue", "name": "Chè Huế",
+      "description": "Nhiều loại chè: chè bột lọc heo quay, chè đậu ván, chè khoai môn.",
+      "bestTime": "Ngon nhất buổi chiều", "unit": "cốc", "art": "CHE",
+      "priceP25": 10000, "priceP75": 20000, "verifiedPlaceCount": 18, "nearestHint": "200 m", "status": "active"
+    },
+    "com-hen": {
+      "regionId": "hue", "name": "Cơm hến",
+      "description": "Cơm nguội trộn hến xào, tóp mỡ, đậu phộng, rau thơm và nước hến.",
+      "bestTime": "Ngon nhất buổi trưa", "unit": "đĩa", "art": "COM_HEN",
+      "priceP25": 15000, "priceP75": 25000, "verifiedPlaceCount": 9, "nearestHint": "1,1 km", "status": "active"
+    },
+    "banh-canh-nam-pho": {
+      "regionId": "hue", "name": "Bánh canh Nam Phổ",
+      "description": "Sợi bánh canh bột gạo, nước dùng tôm cua sánh đỏ.",
+      "unit": "tô", "art": "BUN_BO",
+      "priceP25": 20000, "priceP75": 30000, "verifiedPlaceCount": 6, "nearestHint": "800 m", "status": "active"
+    },
+    "banh-khoai": {
+      "regionId": "hue", "name": "Bánh khoái",
+      "description": "Bánh đổ chảo giòn, nhân tôm thịt giá, chấm nước lèo gan đậu phộng.",
+      "bestTime": "Ngon nhất buổi tối", "unit": "đĩa", "art": "COM_HEN",
+      "priceP25": 25000, "priceP75": 40000, "verifiedPlaceCount": 7, "nearestHint": "1,4 km", "status": "active"
+    },
+    "banh-beo": {
+      "regionId": "hue", "name": "Bánh bèo",
+      "description": "Bánh bèo chén nhỏ rắc tôm chấy, tóp mỡ, chấm nước mắm ngọt.",
+      "unit": "phần", "art": "CHE",
+      "priceP25": 30000, "priceP75": 45000, "verifiedPlaceCount": 10, "nearestHint": "500 m", "status": "active"
+    },
+    "nem-lui": {
+      "regionId": "hue", "name": "Nem lụi",
+      "description": "Thịt quết nướng trên que sả, cuốn bánh tráng rau sống, chấm tương gan.",
+      "unit": "phần", "art": "COM_HEN",
+      "priceP25": 40000, "priceP75": 60000, "verifiedPlaceCount": 5, "nearestHint": "900 m", "status": "active"
+    }
+  },
+
+  "places": {
+    "mau-bun-bo-o-hanh": {
+      "regionId": "hue", "name": "Bún bò O Hạnh", "address": "Dữ liệu mẫu – Phường Phú Hội, TP Huế",
+      "location": {"_geo": [16.4655, 107.5905]}, "openTime": "06:00", "closeTime": "21:00", "status": "active",
+      "trustScore": 89, "isVerified": true, "priceWarning": false, "ratingAvg": 4.6, "reviewCount": 32, "checkInCount": 46,
+      "dishIds": ["bun-bo-hue"],
+      "menu": [
+        {"dishId": "bun-bo-hue", "name": "Bún bò đặc biệt", "price": 45000},
+        {"dishId": "bun-bo-hue", "name": "Bún bò giò heo", "price": 40000},
+        {"dishId": "bun-bo-hue", "name": "Bún bò tái", "price": 35000}
+      ],
+      "createdAt": {"_serverTimestamp": true}
+    },
+    "mau-bun-bo-me-keo": {
+      "regionId": "hue", "name": "Bún bò Mệ Kéo", "address": "Dữ liệu mẫu – Phường Phú Hội, TP Huế",
+      "location": {"_geo": [16.4702, 107.5951]}, "openTime": "06:00", "closeTime": "13:00", "status": "active",
+      "trustScore": 82, "isVerified": true, "priceWarning": false, "ratingAvg": 4.4, "reviewCount": 21, "checkInCount": 38,
+      "dishIds": ["bun-bo-hue"],
+      "menu": [{"dishId": "bun-bo-hue", "name": "Bún bò Huế", "price": 40000}],
+      "createdAt": {"_serverTimestamp": true}
+    },
+    "mau-hoang-cung": {
+      "regionId": "hue", "name": "Hoàng Cung", "address": "Dữ liệu mẫu – Phường Thuận Hoà, TP Huế",
+      "location": {"_geo": [16.4680, 107.5880]}, "openTime": "07:00", "closeTime": "22:00", "status": "active",
+      "trustScore": 58, "isVerified": true, "priceWarning": true, "ratingAvg": 3.6, "reviewCount": 14, "checkInCount": 19,
+      "dishIds": ["bun-bo-hue", "nem-lui"],
+      "menu": [
+        {"dishId": "bun-bo-hue", "name": "Bún bò Huế", "price": 70000},
+        {"dishId": "nem-lui", "name": "Nem lụi", "price": 80000}
+      ],
+      "createdAt": {"_serverTimestamp": true}
+    },
+    "mau-che-hem": {
+      "regionId": "hue", "name": "Chè Hẻm", "address": "Dữ liệu mẫu – Phường Phú Hội, TP Huế",
+      "location": {"_geo": [16.4690, 107.5960]}, "openTime": "10:00", "closeTime": "22:00", "status": "active",
+      "trustScore": 86, "isVerified": true, "priceWarning": false, "ratingAvg": 4.5, "reviewCount": 27, "checkInCount": 41,
+      "dishIds": ["che-hue"],
+      "menu": [{"dishId": "che-hue", "name": "Chè thập cẩm", "price": 15000}],
+      "createdAt": {"_serverTimestamp": true}
+    },
+    "mau-com-hen-ba-no": {
+      "regionId": "hue", "name": "Cơm hến Bà Nở", "address": "Dữ liệu mẫu – Phường Vỹ Dạ, TP Huế",
+      "location": {"_geo": [16.4720, 107.5850]}, "openTime": "06:30", "closeTime": "14:00", "status": "active",
+      "trustScore": 84, "isVerified": true, "priceWarning": false, "ratingAvg": 4.5, "reviewCount": 18, "checkInCount": 29,
+      "dishIds": ["com-hen"],
+      "menu": [{"dishId": "com-hen", "name": "Cơm hến", "price": 20000}],
+      "createdAt": {"_serverTimestamp": true}
+    },
+    "mau-banh-canh-nam-pho": {
+      "regionId": "hue", "name": "Bánh canh Nam Phổ Mụ Đợi", "address": "Dữ liệu mẫu – Phường Phú Nhuận, TP Huế",
+      "location": {"_geo": [16.4610, 107.5980]}, "openTime": "14:00", "closeTime": "20:00", "status": "active",
+      "trustScore": 80, "isVerified": true, "priceWarning": false, "ratingAvg": 4.3, "reviewCount": 11, "checkInCount": 17,
+      "dishIds": ["banh-canh-nam-pho"],
+      "menu": [{"dishId": "banh-canh-nam-pho", "name": "Bánh canh Nam Phổ", "price": 25000}],
+      "createdAt": {"_serverTimestamp": true}
+    },
+    "mau-banh-khoai-lac-thien": {
+      "regionId": "hue", "name": "Bánh khoái Lạc Thiện", "address": "Dữ liệu mẫu – Phường Thuận Thành, TP Huế",
+      "location": {"_geo": [16.4745, 107.5790]}, "openTime": "15:00", "closeTime": "22:00", "status": "active",
+      "trustScore": 78, "isVerified": true, "priceWarning": false, "ratingAvg": 4.2, "reviewCount": 9, "checkInCount": 15,
+      "dishIds": ["banh-khoai", "nem-lui"],
+      "menu": [
+        {"dishId": "banh-khoai", "name": "Bánh khoái", "price": 35000},
+        {"dishId": "nem-lui", "name": "Nem lụi", "price": 45000}
+      ],
+      "createdAt": {"_serverTimestamp": true}
+    },
+    "mau-banh-beo-ba-cu": {
+      "regionId": "hue", "name": "Bánh bèo Bà Cụ", "address": "Dữ liệu mẫu – Phường Phú Hội, TP Huế",
+      "location": {"_geo": [16.4630, 107.5870]}, "openTime": "13:00", "closeTime": "19:00", "status": "active",
+      "trustScore": 75, "isVerified": false, "priceWarning": false, "ratingAvg": 4.1, "reviewCount": 6, "checkInCount": 4,
+      "dishIds": ["banh-beo"],
+      "menu": [{"dishId": "banh-beo", "name": "Bánh bèo chén", "price": 35000}],
+      "createdAt": {"_serverTimestamp": true}
+    }
+  },
+
+  "config": {
+    "rules": {
+      "checkInRadiusMeters": 100, "checkInCooldownHours": 12, "reviewCheckInWindowDays": 7,
+      "verifiedMinCheckIns": 5, "verifiedMinUsers": 3, "priceWarningThreshold": 0.2,
+      "localBadgeCheckIns": 5, "localBadgeMinPlaces": 3, "localReviewWeight": 1.5,
+      "duplicatePlaceRadiusMeters": 15, "reportHideThreshold": 3
+    }
+  },
+
+  "currentUser": {
+    "_readme": "Dữ liệu demo gắn vào tài khoản đang đăng nhập (users/{uid}/...).",
+    "profile": {
+      "localBadge": "Người địa phương · Huế",
+      "stats": {"checkIns": 23, "reviews": 14, "suggestions": 2}
+    },
+    "wishlist": {
+      "bun-bo-hue": {"dishName": "Bún bò Huế", "regionId": "hue", "placeId": "mau-bun-bo-o-hanh", "placeName": "O Hạnh", "distanceHint": "350 m", "eaten": true, "eatenAt": {"_serverTimestamp": true}, "art": "BUN_BO", "addedAt": {"_serverTimestamp": true}},
+      "com-hen": {"dishName": "Cơm hến", "regionId": "hue", "placeId": "mau-com-hen-ba-no", "placeName": "Bà Nở", "distanceHint": "1,1 km", "eaten": true, "eatenAt": {"_serverTimestamp": true}, "art": "COM_HEN", "addedAt": {"_serverTimestamp": true}},
+      "che-hue": {"dishName": "Chè Huế", "regionId": "hue", "placeId": "mau-che-hem", "placeName": "Chè Hẻm", "distanceHint": "600 m", "eaten": true, "eatenAt": {"_serverTimestamp": true}, "art": "CHE", "addedAt": {"_serverTimestamp": true}},
+      "banh-canh-nam-pho": {"dishName": "Bánh canh Nam Phổ", "regionId": "hue", "eaten": false, "art": "BUN_BO", "addedAt": {"_serverTimestamp": true}},
+      "banh-khoai": {"dishName": "Bánh khoái", "regionId": "hue", "placeId": "mau-banh-khoai-lac-thien", "placeName": "Lạc Thiện", "distanceHint": "1,4 km", "eaten": false, "art": "COM_HEN", "addedAt": {"_serverTimestamp": true}}
+    },
+    "savedPlaces": {
+      "mau-bun-bo-o-hanh": {"name": "Bún bò O Hạnh", "dishName": "Bún bò Huế", "distanceHint": "350 m", "trustScore": 89, "art": "BUN_BO", "savedAt": {"_serverTimestamp": true}},
+      "mau-che-hem": {"name": "Chè Hẻm", "dishName": "Chè Huế", "distanceHint": "600 m", "trustScore": 86, "art": "CHE", "savedAt": {"_serverTimestamp": true}},
+      "mau-com-hen-ba-no": {"name": "Cơm hến Bà Nở", "dishName": "Cơm hến", "distanceHint": "1,1 km", "trustScore": 84, "art": "COM_HEN", "savedAt": {"_serverTimestamp": true}}
+    },
+    "badges": {
+      "hue": {"regionName": "Huế", "checkIns": 6, "placeCount": 4, "achieved": true, "achievedAt": {"_date": "2026-09-12"}},
+      "dak-lak": {"regionName": "Đắk Lắk", "checkIns": 1, "placeCount": 1, "achieved": false},
+      "can-tho": {"regionName": "Cần Thơ", "checkIns": 0, "placeCount": 0, "achieved": false}
+    },
+    "notifications": {
+      "mau-thong-bao-1": {"type": "BADGE", "title": "Bạn nhận huy hiệu Người địa phương · Huế", "body": "Đánh giá của bạn ở Huế sẽ có trọng số cao hơn.", "read": false, "createdAt": {"_serverTimestamp": true}}
+    },
+    "reviews": {
+      "mau-bun-bo-o-hanh": {"placeName": "Bún bò O Hạnh", "stars": 5, "content": "Nước dùng đậm, sả thơm, giò mềm.", "price": 45000, "hasCheckIn": true, "isLocal": true, "helpfulCount": 0, "status": "visible", "createdAt": {"_serverTimestamp": true}},
+      "mau-che-hem": {"placeName": "Chè Hẻm Huế", "stars": 4, "content": "Chè ngọt vừa, nhiều topping.", "price": 15000, "hasCheckIn": true, "isLocal": true, "helpfulCount": 0, "status": "visible", "createdAt": {"_serverTimestamp": true}}
+    }
+  }
+}

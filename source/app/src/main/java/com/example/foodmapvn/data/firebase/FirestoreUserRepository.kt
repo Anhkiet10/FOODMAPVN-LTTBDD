@@ -1,5 +1,6 @@
 package com.example.foodmapvn.data.firebase
 
+import com.example.foodmapvn.data.firebase.mapper.time
 import com.example.foodmapvn.data.firebase.mapper.toRegionBadge
 import com.example.foodmapvn.data.firebase.mapper.toReviewSummary
 import com.example.foodmapvn.data.firebase.mapper.toUserProfile
@@ -46,7 +47,7 @@ class FirestoreUserRepository(
         else db.collection(FirestorePaths.REVIEWS).whereEqualTo("userId", uid).asFlow()
             .map { snapshot ->
                 snapshot.documents
-                    .sortedByDescending { it.getTimestamp("createdAt") }
+                    .sortedByDescending { it.time("createdAt") }
                     .take(5)
                     .map { it.toReviewSummary() }
             }

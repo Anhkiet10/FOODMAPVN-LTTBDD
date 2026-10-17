@@ -23,6 +23,7 @@ class FirestoreDishRepository(
     override fun getDishes(): Flow<List<Dish>> =
         db.collection(FirestorePaths.DISHES)
             .whereEqualTo("regionId", regionId)
+            .whereEqualTo("status", "active")
             .asFlow()
             .map { snapshot -> snapshot.documents.map { it.toDish() } }
 

@@ -16,81 +16,77 @@ import com.google.firebase.firestore.DocumentSnapshot
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-// Chuyển document Firestore -> model của app. Tên trường xem mục 8 tài liệu đặc tả.
-
-private fun DocumentSnapshot.int(field: String): Int = getLong(field)?.toInt() ?: 0
+// Chuyển document Firestore -> model của app. Tên trường xem mục 8.2 tài liệu đặc tả.
+// Mọi trường đọc qua các hàm an toàn trong SafeFields.kt: thiếu hoặc sai kiểu -> giá trị mặc định, không crash.
 
 private fun DocumentSnapshot.art(): FoodArtType =
-    getString("art")?.let { runCatching { FoodArtType.valueOf(it) }.getOrNull() } ?: FoodArtType.BUN_BO
-
-private fun DocumentSnapshot.strings(field: String): List<String> =
-    (get(field) as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+    str("art")?.let { runCatching { FoodArtType.valueOf(it) }.getOrNull() } ?: FoodArtType.BUN_BO
 
 private fun DocumentSnapshot.dateText(field: String, pattern: String): String? =
-    getTimestamp(field)?.toDate()?.let { SimpleDateFormat(pattern, Locale.US).format(it) }
+    time(field)?.toDate()?.let { SimpleDateFormat(pattern, Locale.US).format(it) }
 
 fun DocumentSnapshot.toRegionSummary() = RegionSummary(
-    name = getString("name") ?: "",
+    name = str("name") ?: "",
     dishCount = int("dishCount"),
     placeCount = int("placeCount"),
-    isOpenNow = getBoolean("isOpenNow") ?: true,
+    isOpenNow = bool("isOpenNow") ?: true,
     quickFilters = strings("quickFilters"),
 )
 
 fun DocumentSnapshot.toDish(): Dish {
-    val low = getLong("priceP25")
-    val high = getLong("priceP75")
+    val low = long("priceP25")
+    val high = long("priceP75")
     val hasRange = low != null && high != null
     return Dish(
         id = id,
-        name = getString("name") ?: "",
+        name = str("name") ?: "",
         verifiedPlaceCount = int("verifiedPlaceCount"),
-        nearestDistance = getString("nearestHint") ?: "—",
+        nearestDistance = str("nearestHint") ?: "—",
         marketPrice = if (hasRange) "${low!! / 1000}–${high!! / 1000}k" else null,
-        bestTime = getString("bestTime"),
+        bestTime = str("bestTime"),
         priceRange = if (hasRange) "${formatVnd(low!!)}–${formatVnd(high!!)}đ" else "Chưa có giá",
-        priceUnit = getString("unit") ?: "phần",
+        priceUnit = str("unit") ?: "phần",
         art = art(),
         photoCount = strings("photos").size.coerceAtLeast(1),
-        imageUrl = getString("imageUrl"),
+        imageUrl = str("imageUrl"),
     )
 }
 
 fun DocumentSnapshot.toPlacePin(): PlacePin? {
-    val point = getGeoPoint("location") ?: return null
+    val point = geo("location") ?: return null
     return PlacePin(
         id = id,
-        name = getString("name") ?: "",
+        name = str("name") ?: "",
         location = LatLng(point.latitude, point.longitude),
         trustScore = int("trustScore"),
-        hasPriceWarning = getBoolean("priceWarning") ?: false,
+        hasPriceWarning = bool("priceWarning") ?: false,
     )
 }
 
 fun DocumentSnapshot.toSavedDish() = SavedDish(
     id = id,
-    name = getString("dishName") ?: "",
-    placeName = getString("placeName"),
-    distance = getString("distanceHint"),
-    isEaten = getBoolean("eaten") ?: false,
+    name = str("dishName") ?: "",
+    placeName = str("placeName"),
+    distance = str("distanceHint"),
+    isEaten = bool("eaten") ?: false,
     art = art(),
-    imageUrl = getString("imageUrl"),
+    imageUrl = str("imageUrl"),
 )
 
 fun DocumentSnapshot.toSavedPlace() = SavedPlace(
     id = id,
-    name = getString("name") ?: "",
-    dishName = getString("dishName") ?: "",
-    distance = getString("distanceHint") ?: "—",
+    name = str("name") ?: "",
+    dishName = str("dishName") ?: "",
+    distance = str("distanceHint") ?: "—",
     trustScore = int("trustScore"),
     art = art(),
-    imageUrl = getString("imageUrl"),
+    imageUrl = str("imageUrl"),
 )
 
 fun DocumentSnapshot.toUserProfile() = UserProfile(
-    name = getString("name") ?: "Người dùng",
+    name = str("name") ?: "Người dùng",
     memberSince = dateText("createdAt", "MM/yyyy") ?: "",
-    localBadge = getString("localBadge"),
+    localBadge = str("localBadge"),
     checkInCount = int("stats.checkIns"),
     reviewCount = int("stats.reviews"),
     suggestedPlaceCount = int("stats.suggestions"),
@@ -103,7 +99,7 @@ fun DocumentSnapshot.toRegionBadge(calculator: BadgeCalculator): RegionBadge {
         achievedDate = dateText("achievedAt", "dd/MM/yyyy"),
     )
     return RegionBadge(
-        region = getString("regionName") ?: id,
+        region = str("regionName") ?: id,
         status = progress.status,
         description = progress.description,
         progress = progress.progress,
@@ -112,8 +108,8 @@ fun DocumentSnapshot.toRegionBadge(calculator: BadgeCalculator): RegionBadge {
 
 fun DocumentSnapshot.toReviewSummary() = ReviewSummary(
     id = id,
-    placeName = getString("placeName") ?: "",
+    placeName = str("placeName") ?: "",
     rating = int("stars"),
-    isCheckedIn = getBoolean("hasCheckIn") ?: false,
-    price = getLong("price")?.let { "${formatVnd(it)}đ" } ?: "",
+    isCheckedIn = bool("hasCheckIn") ?: false,
+    price = long("price")?.let { "${formatVnd(it)}đ" } ?: "",
 )

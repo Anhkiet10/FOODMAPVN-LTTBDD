@@ -1,5 +1,6 @@
 package com.example.foodmapvn.data.firebase
 
+import com.example.foodmapvn.data.firebase.mapper.bool
 import com.example.foodmapvn.data.firebase.mapper.toSavedDish
 import com.example.foodmapvn.data.firebase.mapper.toSavedPlace
 import com.example.foodmapvn.data.model.RouteSuggestion
@@ -49,7 +50,7 @@ class FirestoreSavedRepository(
     override suspend fun toggleEaten(dishId: String) {
         val uid = auth.currentUser?.uid ?: return
         val ref = userDoc(uid).collection(FirestorePaths.WISHLIST).document(dishId)
-        val eaten = ref.get().awaitTask().getBoolean("eaten") ?: false
+        val eaten = ref.get().awaitTask().bool("eaten") ?: false
         ref.update(
             mapOf(
                 "eaten" to !eaten,

@@ -64,6 +64,7 @@ fun ProfileRoute(
     viewModel: ProfileViewModel = viewModel(factory = ProfileViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val seedMessage by viewModel.seedMessage.collectAsStateWithLifecycle()
     when (val current = state) {
         ProfileScreenState.Loading -> Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
@@ -72,6 +73,9 @@ fun ProfileRoute(
         is ProfileScreenState.Content -> ProfileScreen(
             state = current.data,
             onSignOutClick = viewModel::signOut,
+            canSeed = viewModel.canSeed,
+            seedMessage = seedMessage,
+            onSeedClick = viewModel::seedSampleData,
             modifier = modifier,
         )
     }
@@ -145,6 +149,9 @@ fun ProfileScreen(
     onMySuggestionsClick: () -> Unit = {},
     onOfflineDataClick: () -> Unit = {},
     onSignOutClick: () -> Unit = {},
+    canSeed: Boolean = false,
+    seedMessage: String? = null,
+    onSeedClick: () -> Unit = {},
 ) {
     Column(
         modifier
@@ -191,6 +198,19 @@ fun ProfileScreen(
         MenuDivider()
         MenuRow("Tải dữ liệu vùng để dùng offline", null, onOfflineDataClick)
         MenuDivider()
+        if (canSeed) {
+            // Chỉ có ở bản debug: nạp app/src/debug/assets/seed-data.json lên Firestore
+            MenuRow("Nạp dữ liệu mẫu (debug, cần role admin)", null, onSeedClick)
+            seedMessage?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+            }
+            MenuDivider()
+        }
         Text(
             "Đăng xuất",
             style = MaterialTheme.typography.labelLarge,

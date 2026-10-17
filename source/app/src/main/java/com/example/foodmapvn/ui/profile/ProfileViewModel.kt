@@ -5,17 +5,21 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.example.foodmapvn.data.firebase.FirestoreSeeder
 import com.example.foodmapvn.data.repository.AuthRepository
 import com.example.foodmapvn.data.repository.SavedRepository
 import com.example.foodmapvn.data.repository.UserRepository
 import com.example.foodmapvn.di.appContainer
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 /** Trạng thái màn Hồ sơ: đang tải, Khách (chưa đăng nhập) hoặc có dữ liệu. */
 sealed interface ProfileScreenState {
@@ -29,7 +33,24 @@ class ProfileViewModel(
     userRepository: UserRepository,
     savedRepository: SavedRepository,
     private val authRepository: AuthRepository,
+    private val seeder: FirestoreSeeder? = null,
 ) : ViewModel() {
+
+    /** Nút "Nạp dữ liệu mẫu" chỉ hiện ở bản debug khi đã nối Firebase. */
+    val canSeed: Boolean = seeder != null
+    private val _seedMessage = MutableStateFlow<String?>(null)
+    val seedMessage: StateFlow<String?> = _seedMessage.asStateFlow()
+
+    fun seedSampleData() {
+        val s = seeder ?: return
+        viewModelScope.launch {
+            _seedMessage.value = "Đang nạp dữ liệu mẫu…"
+            _seedMessage.value = s.seed().fold(
+                onSuccess = { "Đã nạp $it document lên Firestore" },
+                onFailure = { "Lỗi: ${it.message}" },
+            )
+        }
+    }
 
     val uiState: StateFlow<ProfileScreenState> = authRepository.currentUser
         .flatMapLatest { user ->
@@ -69,6 +90,7 @@ class ProfileViewModel(
                     userRepository = container.userRepository,
                     savedRepository = container.savedRepository,
                     authRepository = container.authRepository,
+                    seeder = container.seeder,
                 )
             }
         }

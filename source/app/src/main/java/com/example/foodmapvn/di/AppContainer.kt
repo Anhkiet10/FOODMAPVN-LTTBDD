@@ -8,6 +8,7 @@ import com.example.foodmapvn.data.fake.FakeRepositories
 import com.example.foodmapvn.data.firebase.FirebaseAuthRepository
 import com.example.foodmapvn.data.firebase.FirestoreDishRepository
 import com.example.foodmapvn.data.firebase.FirestoreSavedRepository
+import com.example.foodmapvn.data.firebase.FirestoreSeeder
 import com.example.foodmapvn.data.firebase.FirestoreUserRepository
 import com.example.foodmapvn.data.location.FusedLocationRepository
 import com.example.foodmapvn.data.repository.AuthRepository
@@ -52,6 +53,9 @@ class AppContainer(context: Context) {
     val savedRepository: SavedRepository
     val userRepository: UserRepository
 
+    /** Nạp dữ liệu mẫu (chỉ bản debug, chỉ khi đã nối Firebase); null nếu không dùng được. */
+    val seeder: FirestoreSeeder?
+
     val locationRepository: LocationRepository = FusedLocationRepository(appContext)
 
     val imageUploader: ImageUploader = CloudinaryImageUploader(
@@ -68,6 +72,7 @@ class AppContainer(context: Context) {
             dishRepository = FirestoreDishRepository(db, currentRegionId)
             savedRepository = FirestoreSavedRepository(db, auth)
             userRepository = FirestoreUserRepository(db, auth, badgeCalculator)
+            seeder = FirestoreSeeder(appContext, db, auth).takeIf { it.isAvailable }
         } else {
             Log.i("FoodMap", "Chưa có google-services.json: đang dùng dữ liệu giả")
             val fake = FakeRepositories()
@@ -75,6 +80,7 @@ class AppContainer(context: Context) {
             dishRepository = fake.dishRepository
             savedRepository = fake.savedRepository
             userRepository = fake.userRepository
+            seeder = null
         }
     }
 }

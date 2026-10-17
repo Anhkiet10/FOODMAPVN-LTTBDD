@@ -14,4 +14,5 @@ object FirestorePaths {
     const val NOTIFICATIONS = "notifications"
     const val SUGGESTIONS = "suggestions"
     const val REPORTS = "reports"
+    const val CONFIG = "config"
 }

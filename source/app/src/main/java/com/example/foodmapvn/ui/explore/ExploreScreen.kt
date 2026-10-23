@@ -54,6 +54,7 @@ import com.example.foodmapvn.ui.theme.SuccessGreen
 /** Nối ExploreViewModel với ExploreScreen. */
 @Composable
 fun ExploreRoute(
+    onRegionClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ExploreViewModel = viewModel(factory = ExploreViewModel.Factory),
 ) {
@@ -61,6 +62,8 @@ fun ExploreRoute(
     ExploreScreen(
         state = state,
         onFilterSelected = viewModel::onFilterSelected,
+        onRegionClick = onRegionClick,
+        onLocateClick = onRegionClick,
         modifier = modifier,
     )
 }
@@ -70,6 +73,7 @@ fun ExploreScreen(
     state: ExploreUiState,
     modifier: Modifier = Modifier,
     onSearchClick: () -> Unit = {},
+    onRegionClick: () -> Unit = {},
     onLocateClick: () -> Unit = {},
     onOpenFilterSheet: () -> Unit = {},
     onFilterSelected: (String) -> Unit = {},
@@ -86,6 +90,7 @@ fun ExploreScreen(
             SearchHeader(
                 state = state,
                 onSearchClick = onSearchClick,
+                onRegionClick = onRegionClick,
                 onLocateClick = onLocateClick,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
@@ -97,6 +102,16 @@ fun ExploreScreen(
                 onOpenFilterSheet = onOpenFilterSheet,
                 onFilterSelected = onFilterSelected,
             )
+        }
+        if (state.dishes.isEmpty() && state.regionName.isNotEmpty()) {
+            item {
+                Text(
+                    "Chưa có đặc sản cho ${state.regionName}. Dữ liệu đang được bổ sung — bấm tên khu vực ở trên để xem tỉnh/thành khác.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp),
+                )
+            }
         }
         items(state.dishes, key = { it.id }) { dish ->
             DishCard(
@@ -112,6 +127,7 @@ fun ExploreScreen(
 private fun SearchHeader(
     state: ExploreUiState,
     onSearchClick: () -> Unit,
+    onRegionClick: () -> Unit,
     onLocateClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -120,18 +136,33 @@ private fun SearchHeader(
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .background(SearchBarBg)
-            .clickable(onClick = onSearchClick)
-            .padding(start = 14.dp, top = 6.dp, bottom = 6.dp, end = 4.dp),
+            .padding(start = 4.dp, top = 6.dp, bottom = 6.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_search),
-            contentDescription = "Tìm kiếm",
-            modifier = Modifier.size(24.dp),
-        )
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(state.regionName, style = MaterialTheme.typography.titleMedium)
+        // Kính lúp: mở Tìm kiếm (Tuần 2)
+        IconButton(onClick = onSearchClick) {
+            Icon(
+                painter = painterResource(R.drawable.ic_search),
+                contentDescription = "Tìm kiếm",
+                modifier = Modifier.size(24.dp),
+            )
+        }
+        // Tên khu vực: bấm để đổi tỉnh/thành (màn Chọn vùng)
+        Column(
+            Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(onClick = onRegionClick)
+                .padding(vertical = 2.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(state.regionName, style = MaterialTheme.typography.titleMedium)
+                Icon(
+                    painter = painterResource(R.drawable.ic_expand_more),
+                    contentDescription = "Đổi khu vực",
+                    modifier = Modifier.size(20.dp),
+                )
+            }
             Text(
                 text = state.subtitle,
                 style = MaterialTheme.typography.bodySmall,

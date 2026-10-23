@@ -83,7 +83,12 @@ data class RegionSummary(
     val placeCount: Int,
     val isOpenNow: Boolean,
     val quickFilters: List<String>,
-)
+) {
+    companion object {
+        /** Tỉnh chưa có dữ liệu đặc sản. */
+        fun empty(name: String) = RegionSummary(name, 0, 0, isOpenNow = false, quickFilters = emptyList())
+    }
+}
 
 /** Người dùng đã đăng nhập (từ Firebase Auth). */
 data class AuthUser(

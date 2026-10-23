@@ -12,7 +12,7 @@ navigationCompose = "2.10.2"
 firebaseBom = "35.0.1"
 googleServices = "4.5.0"
 playServicesLocation = "21.4.0"
-osmdroid = "6.1.20"
+maplibre = "13.6.1"
 coil = "3.6.3"
 
 [libraries]
@@ -37,7 +37,7 @@ firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.r
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore" }
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
-osmdroid-android = { group = "org.osmdroid", name = "osmdroid-android", version.ref = "osmdroid" }
+maplibre-android = { group = "org.maplibre.gl", name = "android-sdk", version.ref = "maplibre" }
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
 

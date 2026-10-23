@@ -61,7 +61,7 @@ dependencies {
 
     // Vị trí, bản đồ OpenStreetMap, tải ảnh từ URL
     implementation(libs.play.services.location)
-    implementation(libs.osmdroid.android)
+    implementation(libs.maplibre.android)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
     testImplementation(libs.junit)

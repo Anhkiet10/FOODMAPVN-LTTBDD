@@ -10,7 +10,9 @@ import com.example.foodmapvn.data.firebase.FirestoreDishRepository
 import com.example.foodmapvn.data.firebase.FirestoreSavedRepository
 import com.example.foodmapvn.data.firebase.FirestoreSeeder
 import com.example.foodmapvn.data.firebase.FirestoreUserRepository
+import com.example.foodmapvn.data.local.PrefsAreaRepository
 import com.example.foodmapvn.data.location.FusedLocationRepository
+import com.example.foodmapvn.data.repository.AreaRepository
 import com.example.foodmapvn.data.repository.AuthRepository
 import com.example.foodmapvn.data.repository.DishRepository
 import com.example.foodmapvn.data.repository.ImageUploader
@@ -31,13 +33,14 @@ import com.google.firebase.firestore.FirebaseFirestore
  *
  * - Có app/google-services.json  -> dùng Firebase (Auth + Firestore).
  * - Chưa có                       -> dùng dữ liệu giả, app vẫn chạy để làm giao diện.
+ *
+ * QUY ƯỚC NHÓM: file chia 3 vùng "Người 1 / Người 2 / Người 3".
+ * Mỗi người chỉ THÊM dòng vào vùng của mình (khai báo + khởi tạo repository),
+ * không sửa dòng của người khác -> Git tự ghép được, không xung đột.
  */
 class AppContainer(context: Context) {
 
     private val appContext = context.applicationContext
-
-    /** Vùng mặc định khi mở app. TODO: lấy từ màn Chọn vùng. */
-    val currentRegionId = "hue"
 
     val isFirebaseEnabled: Boolean = FirebaseApp.getApps(appContext).isNotEmpty()
 
@@ -48,10 +51,19 @@ class AppContainer(context: Context) {
     val priceRangeCalculator = PriceRangeCalculator(businessRules)
     val badgeCalculator = BadgeCalculator(businessRules)
 
+    // ===== Người 1: khung chung, Khám phá, Bản đồ, Hồ sơ =====
+    /** Khu vực (tỉnh/thành) đang chọn, dùng chung cho cả app; lưu lại khi mở lại app. */
+    val areaRepository: AreaRepository = PrefsAreaRepository(appContext)
     val authRepository: AuthRepository
     val dishRepository: DishRepository
-    val savedRepository: SavedRepository
     val userRepository: UserRepository
+
+    // ===== Người 2: món, quán, check-in, đánh giá =====
+    val savedRepository: SavedRepository
+    // (thêm PlaceRepository, ReviewRepository, CheckInRepository… ở đây)
+
+    // ===== Người 3: đề xuất, báo cáo, thông báo, admin =====
+    // (thêm SuggestionRepository, ReportRepository, NotificationRepository, AdminRepository… ở đây)
 
     /** Nạp dữ liệu mẫu (chỉ bản debug, chỉ khi đã nối Firebase); null nếu không dùng được. */
     val seeder: FirestoreSeeder?
@@ -68,19 +80,25 @@ class AppContainer(context: Context) {
         if (isFirebaseEnabled) {
             val auth = FirebaseAuth.getInstance()
             val db = FirebaseFirestore.getInstance()
+            // Người 1
             authRepository = FirebaseAuthRepository(auth, db)
-            dishRepository = FirestoreDishRepository(db, currentRegionId)
-            savedRepository = FirestoreSavedRepository(db, auth)
+            dishRepository = FirestoreDishRepository(db, areaRepository)
             userRepository = FirestoreUserRepository(db, auth, badgeCalculator)
             seeder = FirestoreSeeder(appContext, db, auth).takeIf { it.isAvailable }
+            // Người 2
+            savedRepository = FirestoreSavedRepository(db, auth)
+            // Người 3
         } else {
             Log.i("FoodMap", "Chưa có google-services.json: đang dùng dữ liệu giả")
-            val fake = FakeRepositories()
+            val fake = FakeRepositories(areaRepository)
+            // Người 1
             authRepository = fake.authRepository
             dishRepository = fake.dishRepository
-            savedRepository = fake.savedRepository
             userRepository = fake.userRepository
             seeder = null
+            // Người 2
+            savedRepository = fake.savedRepository
+            // Người 3
         }
     }
 }

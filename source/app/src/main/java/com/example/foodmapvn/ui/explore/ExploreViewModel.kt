@@ -23,7 +23,9 @@ class ExploreViewModel(
         dishRepository.getRegionSummary(),
         dishRepository.getDishes(),
         selectedFilter,
-    ) { region, dishes, filter ->
+    ) { region, dishes, selected ->
+        // Đổi sang tỉnh khác mà bộ lọc cũ không còn -> về "Tất cả"
+        val filter = if (selected in region.quickFilters) selected else ExploreUiState.ALL
         ExploreUiState(
             regionName = region.name,
             dishCount = region.dishCount,

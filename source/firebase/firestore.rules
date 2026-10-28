@@ -98,7 +98,9 @@ service cloud.firestore {
     }
 
     function isValidUser(d) {
-      return reqStr(d, 'name') && reqStr(d, 'email')
+      // email / phone tuỳ cách đăng nhập: email-mật khẩu & Google có email; SĐT có phone; Facebook có thể không có cả hai
+      return reqStr(d, 'name') && optStr(d, 'email') && optStr(d, 'phone')
+        && (!('authProvider' in d) || d.authProvider in ['password', 'google.com', 'facebook.com', 'phone', 'unknown'])
         && oneOf(d, 'role', ['user', 'admin'])
         && oneOf(d, 'status', ['active', 'locked'])
         && reqMap(d, 'stats') && reqTime(d, 'createdAt')
@@ -232,6 +234,17 @@ service cloud.firestore {
     }
 
     // Đề xuất quán: người dùng gửi (pending), Admin duyệt
+    // Tên tự sinh không trùng (≈ UNIQUE): usernames/{tên} giữ chỗ cho đúng 1 uid, không sửa được
+    match /usernames/{name} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'createdAt'])
+        && reqTime(request.resource.data, 'createdAt')
+        && name.matches('^[a-z0-9]{3,30}$');
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
     match /suggestions/{id} {
       allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
       allow create: if signedIn()

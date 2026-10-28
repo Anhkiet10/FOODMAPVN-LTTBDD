@@ -58,6 +58,12 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
+    implementation(libs.firebase.analytics)
+    // Đăng nhập bên thứ ba: Google (Credential Manager), Facebook
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
+    implementation(libs.facebook.login)
 
     // Vị trí, bản đồ OpenStreetMap, tải ảnh từ URL
     implementation(libs.play.services.location)

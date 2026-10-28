@@ -49,6 +49,7 @@ fun DocumentSnapshot.toDish(): Dish {
         art = art(),
         photoCount = strings("photos").size.coerceAtLeast(1),
         imageUrl = str("imageUrl"),
+        priceLow = low,
     )
 }
 
@@ -90,6 +91,7 @@ fun DocumentSnapshot.toUserProfile() = UserProfile(
     checkInCount = int("stats.checkIns"),
     reviewCount = int("stats.reviews"),
     suggestedPlaceCount = int("stats.suggestions"),
+    avatarUrl = str("avatarUrl"),
 )
 
 fun DocumentSnapshot.toRegionBadge(calculator: BadgeCalculator): RegionBadge {

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.example.foodmapvn.data.analytics.AppAnalytics
 import com.example.foodmapvn.data.local.VietnamProvinces
 import com.example.foodmapvn.data.model.Province
 import com.example.foodmapvn.data.repository.AreaRepository
@@ -37,6 +38,7 @@ data class RegionSelectUiState(
 class RegionSelectViewModel(
     private val areaRepository: AreaRepository,
     private val locationRepository: LocationRepository,
+    private val analytics: AppAnalytics,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -60,7 +62,7 @@ class RegionSelectViewModel(
             if (province == null) {
                 _uiState.update { it.copy(status = LocateStatus.Failed) }
             } else {
-                select(province)
+                select(province, source = "location")
             }
         }
     }
@@ -69,8 +71,9 @@ class RegionSelectViewModel(
         _uiState.update { it.copy(status = LocateStatus.Denied) }
     }
 
-    fun select(province: Province) {
+    fun select(province: Province, source: String = "manual") {
         areaRepository.select(province)
+        analytics.selectRegion(province.id, source)
         _uiState.update { it.copy(selectedId = province.id, status = LocateStatus.Idle, finished = true) }
     }
 
@@ -78,7 +81,7 @@ class RegionSelectViewModel(
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val container = appContainer()
-                RegionSelectViewModel(container.areaRepository, container.locationRepository)
+                RegionSelectViewModel(container.areaRepository, container.locationRepository, container.analytics)
             }
         }
     }

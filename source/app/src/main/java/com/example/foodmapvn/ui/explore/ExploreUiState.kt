@@ -1,6 +1,7 @@
 package com.example.foodmapvn.ui.explore
 
 import com.example.foodmapvn.data.model.Dish
+import com.example.foodmapvn.domain.ExploreFilters
 
 data class ExploreUiState(
     val regionName: String = "",
@@ -9,6 +10,10 @@ data class ExploreUiState(
     val isOpenNow: Boolean = false,
     val filters: List<String> = emptyList(),
     val selectedFilter: String = ALL,
+    /** Bộ lọc nâng cao (UC-05). */
+    val advancedFilters: ExploreFilters = ExploreFilters(),
+    /** Đã có vị trí thật: "gần nhất" và lọc khoảng cách dùng được. */
+    val hasLocation: Boolean = false,
     val dishes: List<Dish> = emptyList(),
 ) {
     val subtitle: String

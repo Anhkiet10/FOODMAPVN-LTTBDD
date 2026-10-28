@@ -2,10 +2,12 @@ package com.example.foodmapvn.data.firebase
 
 import com.example.foodmapvn.data.firebase.mapper.toDish
 import com.example.foodmapvn.data.firebase.mapper.toPlacePin
+import com.example.foodmapvn.data.firebase.mapper.toPlaceSummary
 import com.example.foodmapvn.data.firebase.mapper.toRegionSummary
 import com.example.foodmapvn.data.local.VietnamProvinces
 import com.example.foodmapvn.data.model.Dish
 import com.example.foodmapvn.data.model.PlacePin
+import com.example.foodmapvn.data.model.PlaceSummary
 import com.example.foodmapvn.data.model.Province
 import com.example.foodmapvn.data.model.RegionSummary
 import com.example.foodmapvn.data.repository.AreaRepository
@@ -53,5 +55,14 @@ class FirestoreDishRepository(
             .whereEqualTo("status", "active")
             .asFlow()
             .map { snapshot -> snapshot.documents.mapNotNull { it.toPlacePin() } }
+    }
+
+    // Cùng truy vấn với getPlacePins; Firestore dùng chung một listener cho truy vấn giống nhau
+    override fun getPlaces(): Flow<List<PlaceSummary>> = area.flatMapLatest { province ->
+        db.collection(FirestorePaths.PLACES)
+            .whereEqualTo("regionId", province.id)
+            .whereEqualTo("status", "active")
+            .asFlow()
+            .map { snapshot -> snapshot.documents.mapNotNull { it.toPlaceSummary() } }
     }
 }

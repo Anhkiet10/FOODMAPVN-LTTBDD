@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cấu hình đăng nhập Facebook (xem FIREBASE_SETUP.md, mục Đăng nhập bên thứ ba).
+  - facebook_app_id, facebook_client_token: lấy ở developers.facebook.com → app → Settings → Basic / Advanced.
+    Đây là giá trị dành cho app (công khai được). TUYỆT ĐỐI KHÔNG đặt App Secret ở đây —
+    App Secret chỉ dán vào Firebase Console → Authentication → Sign-in method → Facebook.
+  - fb_login_protocol_scheme = "fb" + App ID.
+  Còn để "YOUR_..." thì nút Facebook báo "chưa cấu hình", app vẫn chạy bình thường.
+  Đăng nhập Google không cần điền gì ở đây: Web client ID tự sinh từ google-services.json.
+-->
+<resources>
+    <string name="facebook_app_id" translatable="false">2356387508496065</string>
+    <string name="facebook_client_token" translatable="false">4754cbe2d41ac6e86ebc94effcfac952</string>
+    <string name="fb_login_protocol_scheme" translatable="false">fb2356387508496065</string>
+</resources>

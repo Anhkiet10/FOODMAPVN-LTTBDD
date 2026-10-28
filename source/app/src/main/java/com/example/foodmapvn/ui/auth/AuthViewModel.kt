@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.example.foodmapvn.data.analytics.AppAnalytics
 import com.example.foodmapvn.data.repository.AuthRepository
 import com.example.foodmapvn.di.appContainer
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,7 +28,10 @@ data class AuthUiState(
 )
 
 /** Dùng chung cho Đăng nhập, Đăng ký và Quên mật khẩu. */
-class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
+class AuthViewModel(
+    private val authRepository: AuthRepository,
+    private val analytics: AppAnalytics,
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
@@ -39,14 +43,14 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
     fun signIn() {
         val s = _uiState.value
         validate(email = s.email, password = s.password)?.let { return showError(it) }
-        submit { authRepository.signIn(s.email, s.password) }
+        submit(onSuccess = { analytics.login() }) { authRepository.signIn(s.email, s.password) }
     }
 
     fun register() {
         val s = _uiState.value
         if (s.name.isBlank()) return showError("Vui lòng nhập họ tên")
         validate(email = s.email, password = s.password)?.let { return showError(it) }
-        submit { authRepository.register(s.name, s.email, s.password) }
+        submit(onSuccess = { analytics.signUp() }) { authRepository.register(s.name, s.email, s.password) }
     }
 
     fun sendPasswordReset() {
@@ -62,11 +66,26 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
         }
     }
 
-    private fun submit(action: suspend () -> Result<Unit>) {
+    // ---------- Bên thứ ba: màn hình lấy token (Google / Facebook) rồi gọi các hàm này ----------
+
+    fun onSocialStart() = _uiState.update { it.copy(isLoading = true, error = null, message = null) }
+
+    fun onSocialError(message: String) = _uiState.update { it.copy(isLoading = false, error = message) }
+
+    fun signInWithGoogleToken(idToken: String) =
+        submit(onSuccess = { analytics.login("google") }) { authRepository.signInWithGoogle(idToken) }
+
+    fun signInWithFacebookToken(accessToken: String) =
+        submit(onSuccess = { analytics.login("facebook") }) { authRepository.signInWithFacebook(accessToken) }
+
+    private fun submit(onSuccess: () -> Unit = {}, action: suspend () -> Result<Unit>) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             action()
-                .onSuccess { _uiState.update { it.copy(isLoading = false, isDone = true) } }
+                .onSuccess {
+                    onSuccess()
+                    _uiState.update { it.copy(isLoading = false, isDone = true) }
+                }
                 .onFailure { e -> _uiState.update { it.copy(isLoading = false, error = e.message) } }
         }
     }
@@ -81,7 +100,7 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
 
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer { AuthViewModel(appContainer().authRepository) }
+            initializer { AuthViewModel(appContainer().authRepository, appContainer().analytics) }
         }
     }
 }

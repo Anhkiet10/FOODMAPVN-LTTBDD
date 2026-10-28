@@ -8,6 +8,7 @@ object FirestorePaths {
     const val REVIEWS = "reviews"          // id = "${placeId}_${userId}" → 1 đánh giá / người / quán
     const val CHECKINS = "checkins"
     const val USERS = "users"
+    const val USERNAMES = "usernames"      // usernames/{tên} -> {uid}: giữ tên tự sinh không trùng
     const val WISHLIST = "wishlist"        // users/{uid}/wishlist/{dishId}
     const val SAVED_PLACES = "savedPlaces" // users/{uid}/savedPlaces/{placeId}
     const val BADGES = "badges"            // users/{uid}/badges/{regionId}

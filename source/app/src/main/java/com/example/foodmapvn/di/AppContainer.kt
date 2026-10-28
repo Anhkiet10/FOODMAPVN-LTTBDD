@@ -10,7 +10,11 @@ import com.example.foodmapvn.data.firebase.FirestoreDishRepository
 import com.example.foodmapvn.data.firebase.FirestoreSavedRepository
 import com.example.foodmapvn.data.firebase.FirestoreSeeder
 import com.example.foodmapvn.data.firebase.FirestoreUserRepository
+import com.example.foodmapvn.data.analytics.AppAnalytics
+import com.example.foodmapvn.data.local.ImageCompressor
 import com.example.foodmapvn.data.local.PrefsAreaRepository
+import com.example.foodmapvn.data.local.PrefsSearchHistoryRepository
+import com.example.foodmapvn.data.repository.SearchHistoryRepository
 import com.example.foodmapvn.data.location.FusedLocationRepository
 import com.example.foodmapvn.data.repository.AreaRepository
 import com.example.foodmapvn.data.repository.AuthRepository
@@ -44,6 +48,9 @@ class AppContainer(context: Context) {
 
     val isFirebaseEnabled: Boolean = FirebaseApp.getApps(appContext).isNotEmpty()
 
+    /** Google Analytics for Firebase (dùng chung cả nhóm; chưa có Firebase thì không làm gì). */
+    val analytics = AppAnalytics(appContext, enabled = isFirebaseEnabled)
+
     // Quy tắc nghiệp vụ (domain)
     val businessRules = BusinessRules()
     val checkInValidator = CheckInValidator(businessRules)
@@ -54,6 +61,10 @@ class AppContainer(context: Context) {
     // ===== Người 1: khung chung, Khám phá, Bản đồ, Hồ sơ =====
     /** Khu vực (tỉnh/thành) đang chọn, dùng chung cho cả app; lưu lại khi mở lại app. */
     val areaRepository: AreaRepository = PrefsAreaRepository(appContext)
+    /** Lịch sử tìm kiếm gần đây (màn Tìm kiếm). */
+    val searchHistoryRepository: SearchHistoryRepository = PrefsSearchHistoryRepository(appContext)
+    /** Thu nhỏ ảnh trước khi tải lên Cloudinary (ảnh đại diện…). */
+    val imageCompressor = ImageCompressor(appContext)
     val authRepository: AuthRepository
     val dishRepository: DishRepository
     val userRepository: UserRepository

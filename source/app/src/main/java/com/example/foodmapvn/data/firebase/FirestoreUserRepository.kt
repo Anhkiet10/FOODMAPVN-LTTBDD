@@ -9,7 +9,9 @@ import com.example.foodmapvn.data.model.ReviewSummary
 import com.example.foodmapvn.data.model.UserProfile
 import com.example.foodmapvn.data.repository.UserRepository
 import com.example.foodmapvn.domain.BadgeCalculator
+import android.net.Uri
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -52,6 +54,23 @@ class FirestoreUserRepository(
                     .map { it.toReviewSummary() }
             }
             .onStart { emit(emptyList()) }
+    }
+
+    override suspend fun updateProfile(name: String, avatarUrl: String?): Result<Unit> = runCatching {
+        val user = auth.currentUser ?: error("Bạn cần đăng nhập để sửa hồ sơ")
+        val updates = mutableMapOf<String, Any>("name" to name.trim())
+        avatarUrl?.let { updates["avatarUrl"] = it }
+        userDoc(user.uid).update(updates).awaitTask()
+        // Cập nhật luôn hồ sơ của Firebase Auth cho khớp (tên/ảnh hiển thị ở chỗ khác)
+        val request = UserProfileChangeRequest.Builder().setDisplayName(name.trim())
+        avatarUrl?.let { request.setPhotoUri(Uri.parse(it)) }
+        user.updateProfile(request.build()).awaitTask()
+        Unit
+    }.recoverCatching { e ->
+        val message = if ("PERMISSION_DENIED" in (e.message ?: ""))
+            "Firestore từ chối lưu: hãy Publish lại Rules mới nhất (firebase/firestore.rules) trên Firebase Console"
+        else e.message ?: "Không lưu được hồ sơ"
+        throw Exception(message, e)
     }
 
     override fun hasUnreadNotification(): Flow<Boolean> = auth.uidFlow().flatMapLatest { uid ->

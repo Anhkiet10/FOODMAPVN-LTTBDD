@@ -24,6 +24,9 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.ui.layout.ContentScale
+import coil3.compose.AsyncImage
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -60,6 +63,7 @@ import com.example.foodmapvn.ui.theme.SuccessGreenSoft
 @Composable
 fun ProfileRoute(
     onLoginClick: () -> Unit,
+    onEditProfileClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: ProfileViewModel = viewModel(factory = ProfileViewModel.Factory),
 ) {
@@ -73,6 +77,7 @@ fun ProfileRoute(
         is ProfileScreenState.Content -> ProfileScreen(
             state = current.data,
             onSignOutClick = viewModel::signOut,
+            onEditProfileClick = onEditProfileClick,
             canSeed = viewModel.canSeed,
             seedMessage = seedMessage,
             onSeedClick = viewModel::seedSampleData,
@@ -149,6 +154,7 @@ fun ProfileScreen(
     onMySuggestionsClick: () -> Unit = {},
     onOfflineDataClick: () -> Unit = {},
     onSignOutClick: () -> Unit = {},
+    onEditProfileClick: () -> Unit = {},
     canSeed: Boolean = false,
     seedMessage: String? = null,
     onSeedClick: () -> Unit = {},
@@ -162,7 +168,13 @@ fun ProfileScreen(
     ) {
         ProfileTopBar(state.hasUnreadNotification, onNotificationsClick, onSettingsClick)
         Spacer(Modifier.height(12.dp))
-        UserHeader(state.user)
+        UserHeader(state.user, onClick = onEditProfileClick)
+        Spacer(Modifier.height(12.dp))
+        OutlinedButton(
+            onClick = onEditProfileClick,
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Sửa hồ sơ") }
         Spacer(Modifier.height(16.dp))
         StatsRow(state.user)
 
@@ -252,21 +264,31 @@ private fun ProfileTopBar(
 }
 
 @Composable
-private fun UserHeader(user: UserProfile) {
+private fun UserHeader(user: UserProfile, onClick: () -> Unit = {}) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier
                 .size(72.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
+                .background(MaterialTheme.colorScheme.primaryContainer)
+                .clickable(onClick = onClick),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                user.avatarInitial,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-            )
+            if (!user.avatarUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = user.avatarUrl,
+                    contentDescription = "Ảnh đại diện",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Text(
+                    user.avatarInitial,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
         }
         Spacer(Modifier.width(16.dp))
         Column {

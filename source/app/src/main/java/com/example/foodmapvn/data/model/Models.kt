@@ -16,6 +16,8 @@ data class Dish(
     val art: FoodArtType,
     val photoCount: Int = 5,
     val imageUrl: String? = null,
+    /** Giá thấp của mặt bằng giá (priceP25, đồng) — dùng cho bộ lọc giá; null = chưa có giá. */
+    val priceLow: Long? = null,
 )
 
 /** Món trong danh sách "Món muốn ăn". */
@@ -53,6 +55,8 @@ data class UserProfile(
     val checkInCount: Int,
     val reviewCount: Int,
     val suggestedPlaceCount: Int,
+    /** Ảnh đại diện (URL Cloudinary); null = hiện chữ cái đầu của tên. */
+    val avatarUrl: String? = null,
 ) {
     /** Chữ cái đại diện: lấy chữ đầu của tên (từ cuối cùng). */
     val avatarInitial: String

@@ -2,6 +2,6 @@
 <resources>
     <!-- Điền từ Cloudinary Console. Upload preset phải là loại "Unsigned".
          Tuyệt đối KHÔNG đặt API secret của Cloudinary vào app. -->
-    <string name="cloudinary_cloud_name" translatable="false">YOUR_CLOUD_NAME</string>
-    <string name="cloudinary_upload_preset" translatable="false">YOUR_UNSIGNED_PRESET</string>
+    <string name="cloudinary_cloud_name" translatable="false">fkhggrn7</string>
+    <string name="cloudinary_upload_preset" translatable="false">avatarfmvn</string>
 </resources>

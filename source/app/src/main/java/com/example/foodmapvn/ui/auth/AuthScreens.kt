@@ -22,6 +22,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -31,6 +32,16 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import com.example.foodmapvn.R
+import kotlinx.coroutines.launch
 import com.example.foodmapvn.ui.theme.FoodmapvnTheme
 
 // ---------- Route: nối ViewModel với màn hình ----------
@@ -40,11 +51,39 @@ fun LoginRoute(
     onDone: () -> Unit,
     onRegisterClick: () -> Unit,
     onForgotPasswordClick: () -> Unit,
+    onPhoneClick: () -> Unit,
     viewModel: AuthViewModel = viewModel(factory = AuthViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     LaunchedEffect(state.isDone) { if (state.isDone) onDone() }
+
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val facebookEnabled = remember { isFacebookConfigured(context) }
+    val facebookLogin = rememberFacebookLogin(
+        onToken = viewModel::signInWithFacebookToken,
+        onError = viewModel::onSocialError,
+    )
+
     LoginScreen(
+        onGoogleClick = {
+            val activity = context.findActivity() ?: return@LoginScreen
+            viewModel.onSocialStart()
+            scope.launch {
+                requestGoogleIdToken(activity).fold(viewModel::signInWithGoogleToken) { e ->
+                    viewModel.onSocialError(e.message ?: "Đăng nhập Google lỗi")
+                }
+            }
+        },
+        onFacebookClick = {
+            if (facebookEnabled) {
+                viewModel.onSocialStart()
+                facebookLogin()
+            } else {
+                viewModel.onSocialError("Chưa cấu hình Facebook: điền App ID và Client Token trong res/values/social_login.xml")
+            }
+        },
+        onPhoneClick = onPhoneClick,
         state = state,
         onEmailChange = viewModel::onEmailChange,
         onPasswordChange = viewModel::onPasswordChange,
@@ -98,6 +137,9 @@ fun LoginScreen(
     onRegisterClick: () -> Unit,
     onForgotPasswordClick: () -> Unit,
     onContinueAsGuest: () -> Unit,
+    onGoogleClick: () -> Unit = {},
+    onFacebookClick: () -> Unit = {},
+    onPhoneClick: () -> Unit = {},
 ) {
     AuthScaffold(title = "Đăng nhập", subtitle = "Tìm đặc sản đúng vị, quán đáng tin") {
         EmailField(state.email, onEmailChange)
@@ -107,6 +149,12 @@ fun LoginScreen(
         }
         StatusText(state)
         PrimaryButton("Đăng nhập", state.isLoading, onLoginClick)
+
+        OrDivider()
+        SocialButton("Tiếp tục với Google", R.drawable.ic_person, !state.isLoading, onGoogleClick)
+        SocialButton("Tiếp tục với Facebook", R.drawable.ic_person, !state.isLoading, onFacebookClick)
+        SocialButton("Đăng nhập bằng số điện thoại", R.drawable.ic_phone, !state.isLoading, onPhoneClick)
+
         TextButton(onClick = onRegisterClick, modifier = Modifier.fillMaxWidth()) {
             Text("Chưa có tài khoản? Đăng ký")
         }
@@ -161,6 +209,31 @@ fun ForgotPasswordScreen(
 }
 
 // ---------- Thành phần dùng chung ----------
+
+@Composable
+private fun OrDivider() {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+        HorizontalDivider(Modifier.weight(1f))
+        Text("  hoặc  ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        HorizontalDivider(Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun SocialButton(text: String, icon: Int, enabled: Boolean, onClick: () -> Unit) {
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        shape = RoundedCornerShape(10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp),
+    ) {
+        Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(10.dp))
+        Text(text)
+    }
+}
 
 @Composable
 private fun AuthScaffold(

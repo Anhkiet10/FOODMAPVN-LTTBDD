@@ -17,6 +17,7 @@ object Routes {
     const val LOGIN = "login"
     const val REGISTER = "register"
     const val FORGOT_PASSWORD = "forgot_password"
+    const val LOGIN_PHONE = "login_phone"   // đăng nhập bằng số điện thoại (OTP)
 
     // ===== Người 1 =====
     const val REGION_SELECT = "region_select"

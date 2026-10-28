@@ -11,4 +11,10 @@ interface UserRepository {
     fun getRegionBadges(): Flow<List<RegionBadge>>
     fun getRecentReviews(): Flow<List<ReviewSummary>>
     fun hasUnreadNotification(): Flow<Boolean>
+
+    /**
+     * Sửa hồ sơ (UC-16): đổi tên hiển thị và/hoặc ảnh đại diện.
+     * [avatarUrl] = null -> giữ ảnh cũ. Ảnh phải tải lên Cloudinary trước (ImageUploader) rồi truyền URL vào đây.
+     */
+    suspend fun updateProfile(name: String, avatarUrl: String?): Result<Unit>
 }

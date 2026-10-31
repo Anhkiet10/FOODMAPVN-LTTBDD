@@ -149,7 +149,15 @@ fun FoodMapApp() {
                 // (thêm: Routes.DISH, Routes.PLACE, Routes.PLACE_REVIEWS, Routes.CHECKIN, Routes.REVIEW)
 
                 // ===== Người 3: đề xuất, báo cáo, thông báo, admin =====
-                // (thêm: Routes.SUGGESTION_NEW, Routes.SUGGESTION_MINE, Routes.REPORT, Routes.NOTIFICATIONS, Routes.ADMIN)
+                // Nhật - Tuần 1: Đề xuất quán mới
+                composable(Routes.SUGGESTION_NEW) {
+                    com.example.foodmapvn.ui.suggestion.SuggestionNewRoute(
+                        onBack = { navController.popBackStack() },
+                        onFinished = { navController.popBackStack() },
+                    )
+                }
+                // thêm ( Routes.SUGGESTION_MINE, Routes.REPORT, Routes.NOTIFICATIONS)
+
             }
             }
         }
@@ -162,6 +170,7 @@ private fun MainTabs(
     onRegionClick: () -> Unit,
     onSearchClick: () -> Unit,
     onEditProfileClick: () -> Unit,
+    onSuggestPlaceClick: () -> Unit = {},
     onDishClick: (Dish) -> Unit,
 ) {
     var currentTab by rememberSaveable { mutableStateOf(MainTab.EXPLORE) }
@@ -184,7 +193,11 @@ private fun MainTabs(
                 )
                 MainTab.MAP -> MapRoute()
                 MainTab.SAVED -> SavedRoute()
-                MainTab.PROFILE -> ProfileRoute(onLoginClick = onLoginClick, onEditProfileClick = onEditProfileClick)
+                MainTab.PROFILE -> ProfileRoute(
+                    onLoginClick = onLoginClick,
+                    onEditProfileClick = onEditProfileClick,
+                    onSuggestPlaceClick = onSuggestPlaceClick,
+                )
             }
         }
     }

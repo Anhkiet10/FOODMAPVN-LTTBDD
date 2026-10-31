@@ -64,6 +64,7 @@ import com.example.foodmapvn.ui.theme.SuccessGreenSoft
 fun ProfileRoute(
     onLoginClick: () -> Unit,
     onEditProfileClick: () -> Unit = {},
+    onSuggestPlaceClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: ProfileViewModel = viewModel(factory = ProfileViewModel.Factory),
 ) {
@@ -78,6 +79,7 @@ fun ProfileRoute(
             state = current.data,
             onSignOutClick = viewModel::signOut,
             onEditProfileClick = onEditProfileClick,
+            onSuggestPlaceClick = onSuggestPlaceClick,
             canSeed = viewModel.canSeed,
             seedMessage = seedMessage,
             onSeedClick = viewModel::seedSampleData,
@@ -155,6 +157,7 @@ fun ProfileScreen(
     onOfflineDataClick: () -> Unit = {},
     onSignOutClick: () -> Unit = {},
     onEditProfileClick: () -> Unit = {},
+    onSuggestPlaceClick: () -> Unit = {},
     canSeed: Boolean = false,
     seedMessage: String? = null,
     onSeedClick: () -> Unit = {},
@@ -209,6 +212,8 @@ fun ProfileScreen(
         MenuRow("Đề xuất quán của tôi", state.mySuggestionCount, onMySuggestionsClick)
         MenuDivider()
         MenuRow("Tải dữ liệu vùng để dùng offline", null, onOfflineDataClick)
+        MenuDivider()
+        MenuRow("Đề xuất quán mới", null, onSuggestPlaceClick)
         MenuDivider()
         if (canSeed) {
             // Chỉ có ở bản debug: nạp app/src/debug/assets/seed-data.json lên Firestore

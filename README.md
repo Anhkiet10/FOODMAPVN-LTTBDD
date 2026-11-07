@@ -1,3 +1,0 @@
-# MAPFOODVN-LTTB-
-
-hello

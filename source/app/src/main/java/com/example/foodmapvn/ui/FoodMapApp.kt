@@ -42,6 +42,12 @@ import androidx.compose.ui.platform.LocalContext
 import com.example.foodmapvn.ui.splash.SplashRoute
 import com.example.foodmapvn.ui.theme.FoodmapvnTheme
 
+import com.example.foodmapvn.ui.checkin.CheckInRoute
+import com.example.foodmapvn.ui.dish.DishDetailRoute
+import com.example.foodmapvn.ui.place.PlaceDetailRoute
+import com.example.foodmapvn.ui.place.PlaceReviewsRoute
+import com.example.foodmapvn.ui.review.WriteReviewRoute
+
 /**
  * Giao diện gốc của app: theme + điều hướng.
  * NavHost quản lý các màn toàn màn hình; 4 tab chính nằm trong màn MAIN.
@@ -103,8 +109,8 @@ fun FoodMapApp() {
                         onRegionClick = { navController.navigate(Routes.REGION_SELECT) },
                         onSearchClick = { navController.navigate(Routes.SEARCH) },
                         onEditProfileClick = { navController.navigate(Routes.PROFILE_EDIT) },
-                        // Màn Chi tiết đặc sản là của Người 2: chưa có thì báo nhẹ, không crash
-                        onDishClick = { navController.navigateIfReady(Routes.dish(it.id), context, "Chi tiết đặc sản") },
+                        onDishClick = { navController.navigate(Routes.dish(it.id)) },
+                        onPlaceClick = { navController.navigate(Routes.place(it)) },
                     )
                 }
                 // Đăng nhập xong (mọi cách) -> đóng các màn đăng nhập, quay về màn trước khi mở Đăng nhập
@@ -134,8 +140,8 @@ fun FoodMapApp() {
                 composable(Routes.SEARCH) {
                     SearchRoute(
                         onBack = { navController.popBackStack() },
-                        onDishClick = { navController.navigateIfReady(Routes.dish(it.id), context, "Chi tiết đặc sản") },
-                        onPlaceClick = { navController.navigateIfReady(Routes.place(it.id), context, "Chi tiết quán") },
+                        onDishClick = { navController.navigate(Routes.dish(it.id)) },
+                        onPlaceClick = { navController.navigate(Routes.place(it.id)) },
                     )
                 }
                 composable(Routes.PROFILE_EDIT) {
@@ -146,7 +152,46 @@ fun FoodMapApp() {
                 }
 
                 // ===== Người 2: món, quán, check-in, đánh giá =====
-                // (thêm: Routes.DISH, Routes.PLACE, Routes.PLACE_REVIEWS, Routes.CHECKIN, Routes.REVIEW)
+                composable(Routes.DISH) {
+                    DishDetailRoute(
+                        onBack = { navController.popBackStack() },
+                        onPlaceClick = { placeId -> navController.navigate(Routes.place(placeId)) },
+                    )
+                }
+                composable(Routes.PLACE) {
+                    PlaceDetailRoute(
+                        onBack = { navController.popBackStack() },
+                        onCheckInClick = { placeId -> navController.navigate(Routes.checkin(placeId)) },
+                        onWriteReviewClick = { placeId -> navController.navigate(Routes.review(placeId)) },
+                        onAllReviewsClick = { placeId -> navController.navigate(Routes.placeReviews(placeId)) },
+                        onDirectionsClick = { place ->
+                            container.navigationRouteManager.startNavigation(
+                                placeId = place.id,
+                                placeName = place.name,
+                                address = place.address,
+                                location = place.location,
+                            )
+                            navController.popBackStack(Routes.MAIN, inclusive = false)
+                        },
+                    )
+                }
+                composable(Routes.PLACE_REVIEWS) {
+                    PlaceReviewsRoute(
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+                composable(Routes.CHECKIN) {
+                    CheckInRoute(
+                        onDone = { navController.popBackStack() },
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+                composable(Routes.REVIEW) {
+                    WriteReviewRoute(
+                        onDone = { navController.popBackStack() },
+                        onBack = { navController.popBackStack() },
+                    )
+                }
 
                 // ===== Người 3: đề xuất, báo cáo, thông báo, admin =====
                 // (thêm: Routes.SUGGESTION_NEW, Routes.SUGGESTION_MINE, Routes.REPORT, Routes.NOTIFICATIONS, Routes.ADMIN)
@@ -163,9 +208,21 @@ private fun MainTabs(
     onSearchClick: () -> Unit,
     onEditProfileClick: () -> Unit,
     onDishClick: (Dish) -> Unit,
+    onPlaceClick: (String) -> Unit = {},
 ) {
     var currentTab by rememberSaveable { mutableStateOf(MainTab.EXPLORE) }
-    val analytics = (LocalContext.current.applicationContext as FoodMapApplication).container.analytics
+    val context = LocalContext.current
+    val container = (context.applicationContext as FoodMapApplication).container
+    val analytics = container.analytics
+
+    val requestedTabSwitch by container.navigationRouteManager.requestedTabSwitch.collectAsState()
+    LaunchedEffect(requestedTabSwitch) {
+        if (requestedTabSwitch) {
+            currentTab = MainTab.MAP
+            container.navigationRouteManager.consumeTabSwitch()
+        }
+    }
+
     LaunchedEffect(currentTab) { analytics.screen("tab_" + currentTab.name.lowercase()) }
 
     Scaffold(
@@ -183,7 +240,10 @@ private fun MainTabs(
                     onDishClick = onDishClick,
                 )
                 MainTab.MAP -> MapRoute()
-                MainTab.SAVED -> SavedRoute()
+                MainTab.SAVED -> SavedRoute(
+                    onDishClick = { onPlaceClick(it) },
+                    onPlaceClick = onPlaceClick,
+                )
                 MainTab.PROFILE -> ProfileRoute(onLoginClick = onLoginClick, onEditProfileClick = onEditProfileClick)
             }
         }

@@ -23,7 +23,7 @@ object VietnamProvinces {
         Province("can-tho", "Cần Thơ", true, LatLng(10.0452, 105.7469), listOf("Sóc Trăng", "Hậu Giang")),
 
         // 28 tỉnh
-        Province("an-giang", "An Giang", false, LatLng(10.0125, 105.0809), listOf("Kiên Giang")),
+        Province("an-giang", "An Giang", false, LatLng(10.3840, 105.4350), listOf("Kiên Giang")),
         Province("bac-ninh", "Bắc Ninh", false, LatLng(21.2731, 106.1946), listOf("Bắc Giang")),
         Province("ca-mau", "Cà Mau", false, LatLng(9.1769, 105.1524), listOf("Bạc Liêu")),
         Province("cao-bang", "Cao Bằng", false, LatLng(22.6657, 106.2570)),

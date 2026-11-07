@@ -16,13 +16,24 @@ import com.google.firebase.firestore.GeoPoint
 
 private const val TAG = "FoodMapData"
 
+fun cleanDataText(text: String?): String {
+    if (text.isNullOrBlank()) return ""
+    return text
+        .replace(Regex("""(?i)\s*\(\s*mẫu\s*\)"""), "")
+        .replace(Regex("""(?i)quán tưởng tượng để demo\s*[–-]?\s*"""), "")
+        .replace(Regex("""(?i)dữ liệu mẫu\s*[–-]?\s*"""), "")
+        .replace(Regex("""(?i)thông tin demo\s*[–-]?\s*"""), "")
+        .replace(Regex("""\s+"""), " ")
+        .trim()
+}
+
 private fun DocumentSnapshot.warnType(field: String, expected: String, actual: Any) {
     Log.w(TAG, "${reference.path}.$field: cần $expected nhưng nhận ${actual::class.java.simpleName} ($actual)")
 }
 
 internal fun DocumentSnapshot.str(field: String): String? = when (val v = get(field)) {
     null -> null
-    is String -> v
+    is String -> cleanDataText(v).ifEmpty { null }
     else -> { warnType(field, "string", v); null }
 }
 

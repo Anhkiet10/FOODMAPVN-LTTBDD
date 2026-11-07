@@ -36,7 +36,7 @@ class ProfileViewModel(
     private val seeder: FirestoreSeeder? = null,
 ) : ViewModel() {
 
-    /** Nút "Nạp dữ liệu mẫu" chỉ hiện ở bản debug khi đã nối Firebase. */
+    /** Nút "Khởi tạo dữ liệu hệ thống" chỉ hiện ở bản debug khi đã nối Firebase. */
     val canSeed: Boolean = seeder != null
     private val _seedMessage = MutableStateFlow<String?>(null)
     val seedMessage: StateFlow<String?> = _seedMessage.asStateFlow()
@@ -44,7 +44,7 @@ class ProfileViewModel(
     fun seedSampleData() {
         val s = seeder ?: return
         viewModelScope.launch {
-            _seedMessage.value = "Đang nạp dữ liệu mẫu…"
+            _seedMessage.value = "Đang khởi tạo dữ liệu hệ thống…"
             _seedMessage.value = s.seed().fold(
                 onSuccess = { "Đã nạp $it document lên Firestore" },
                 onFailure = { "Lỗi: ${it.message}" },

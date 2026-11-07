@@ -53,6 +53,8 @@ import com.example.foodmapvn.ui.theme.SuccessGreenSoft
 /** Nối SavedViewModel với SavedScreen. */
 @Composable
 fun SavedRoute(
+    onDishClick: (String) -> Unit = {},
+    onPlaceClick: (String) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: SavedViewModel = viewModel(factory = SavedViewModel.Factory),
 ) {
@@ -61,6 +63,8 @@ fun SavedRoute(
         state = state,
         onTabSelected = viewModel::onTabSelected,
         onToggleEaten = viewModel::onToggleEaten,
+        onDishClick = { onDishClick(it.id) },
+        onPlaceClick = { onPlaceClick(it.id) },
         modifier = modifier,
     )
 }

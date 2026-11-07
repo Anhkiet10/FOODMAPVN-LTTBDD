@@ -84,13 +84,13 @@ object FakeData {
         SavedPlace("p3", "Cơm hến Bà Nở", "Cơm hến", "1,1 km", trustScore = 84, art = FoodArtType.COM_HEN),
     )
 
-    /** Toạ độ quanh trung tâm Huế, chỉ để thử bản đồ. */
+    /** Toạ độ thực tế các địa điểm tại Huế. */
     val placePins = listOf(
-        PlacePin("p1", "Bún bò O Hạnh", LatLng(16.4655, 107.5905), trustScore = 89, hasPriceWarning = false),
-        PlacePin("p2", "Chè Hẻm", LatLng(16.4690, 107.5960), trustScore = 86, hasPriceWarning = false),
-        PlacePin("p3", "Cơm hến Bà Nở", LatLng(16.4720, 107.5850), trustScore = 84, hasPriceWarning = false),
-        PlacePin("p4", "Bánh canh Nam Phổ", LatLng(16.4610, 107.5980), trustScore = 80, hasPriceWarning = false),
-        PlacePin("p5", "Hoàng Cung", LatLng(16.4680, 107.5880), trustScore = 58, hasPriceWarning = true),
+        PlacePin("p1", "Bún bò O Hạnh", LatLng(16.4608, 107.5925), trustScore = 89, hasPriceWarning = false),
+        PlacePin("p2", "Chè Hẻm", LatLng(16.4658, 107.5948), trustScore = 86, hasPriceWarning = false),
+        PlacePin("p3", "Cơm hến Bà Nở", LatLng(16.4785, 107.5990), trustScore = 84, hasPriceWarning = false),
+        PlacePin("p4", "Bánh canh Nam Phổ", LatLng(16.4612, 107.5941), trustScore = 80, hasPriceWarning = false),
+        PlacePin("p5", "Hoàng Cung", LatLng(16.4678, 107.5882), trustScore = 58, hasPriceWarning = true),
     )
 
     val routeSuggestion = RouteSuggestion(

@@ -212,7 +212,7 @@ fun ProfileScreen(
         MenuDivider()
         if (canSeed) {
             // Chỉ có ở bản debug: nạp app/src/debug/assets/seed-data.json lên Firestore
-            MenuRow("Nạp dữ liệu mẫu (debug, cần role admin)", null, onSeedClick)
+            MenuRow("Khởi tạo dữ liệu hệ thống (debug, admin)", null, onSeedClick)
             seedMessage?.let {
                 Text(
                     it,

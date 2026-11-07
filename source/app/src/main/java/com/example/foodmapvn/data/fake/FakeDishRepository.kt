@@ -29,11 +29,11 @@ class FakeDishRepository(private val areaRepository: AreaRepository) : DishRepos
 
     private companion object {
         val FAKE_PLACES = listOf(
-            PlaceSummary("p1", "Bún bò O Hạnh", "Phú Hội, Huế", LatLng(16.4655, 107.5905), "06:00", "21:00", 89, true, false, 4.6, listOf("bun-bo-hue"), mapOf("bun-bo-hue" to 35_000L)),
-            PlaceSummary("p2", "Chè Hẻm", "Hùng Vương, Huế", LatLng(16.4690, 107.5960), "09:00", "22:30", 86, true, false, 4.5, listOf("che-hue"), mapOf("che-hue" to 15_000L)),
-            PlaceSummary("p3", "Cơm hến Bà Nở", "Cồn Hến, Huế", LatLng(16.4720, 107.5850), "06:30", "14:00", 84, true, false, 4.4, listOf("com-hen"), mapOf("com-hen" to 20_000L)),
-            PlaceSummary("p4", "Bánh canh Nam Phổ", "Phú Hội, Huế", LatLng(16.4610, 107.5980), "15:00", "21:00", 80, false, false, 4.2, listOf("banh-canh-nam-pho"), mapOf("banh-canh-nam-pho" to 25_000L)),
-            PlaceSummary("p5", "Hoàng Cung", "Lê Lợi, Huế", LatLng(16.4680, 107.5880), "10:00", "22:00", 58, false, true, 3.6, listOf("bun-bo-hue", "com-hen"), mapOf("bun-bo-hue" to 80_000L, "com-hen" to 60_000L)),
+            PlaceSummary("p1", "Bún bò O Hạnh", "11 Lý Thường Kiệt, TP. Huế", LatLng(16.4608, 107.5925), "06:00", "21:00", 89, true, false, 4.6, listOf("bun-bo-hue"), mapOf("bun-bo-hue" to 35_000L)),
+            PlaceSummary("p2", "Chè Hẻm", "1 Kiệt 29 Hùng Vương, TP. Huế", LatLng(16.4658, 107.5948), "09:00", "22:30", 86, true, false, 4.5, listOf("che-hue"), mapOf("che-hue" to 15_000L)),
+            PlaceSummary("p3", "Cơm hến Bà Nở", "22 Cồn Hến, TP. Huế", LatLng(16.4785, 107.5990), "06:30", "14:00", 84, true, false, 4.4, listOf("com-hen"), mapOf("com-hen" to 20_000L)),
+            PlaceSummary("p4", "Bánh canh Nam Phổ", "16 Phạm Hồng Thái, TP. Huế", LatLng(16.4612, 107.5941), "15:00", "21:00", 80, false, false, 4.2, listOf("banh-canh-nam-pho"), mapOf("banh-canh-nam-pho" to 25_000L)),
+            PlaceSummary("p5", "Hoàng Cung", "49 Lê Lợi, TP. Huế", LatLng(16.4678, 107.5882), "10:00", "22:00", 58, false, true, 3.6, listOf("bun-bo-hue", "com-hen"), mapOf("bun-bo-hue" to 80_000L, "com-hen" to 60_000L)),
         )
     }
 }

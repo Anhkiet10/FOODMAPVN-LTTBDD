@@ -22,3 +22,6 @@ __pycache__/
 
 # Cấu hình Android Studio riêng từng máy: không đưa lên git (tránh xung đột)
 .idea/
+
+# Tài liệu xuất ra (Word) để ngoài git, lưu tại C:\LTTBDD-BT\Claude outputs
+Claude outputs/

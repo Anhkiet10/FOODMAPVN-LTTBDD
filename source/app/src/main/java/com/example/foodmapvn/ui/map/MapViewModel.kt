@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.foodmapvn.data.local.VietnamProvinces
+import com.example.foodmapvn.data.location.NavigationRouteManager
+import com.example.foodmapvn.data.location.RoadRoutingService
+import com.example.foodmapvn.data.location.RouteDestination
 import com.example.foodmapvn.data.model.LatLng
 import com.example.foodmapvn.data.model.PlaceSummary
 import com.example.foodmapvn.data.model.Province
@@ -45,6 +48,14 @@ enum class LocationStatus { Idle, Locating, Found, Denied, Unavailable }
 /** Khung mà tâm bản đồ được phép kéo tới (độ): giữ bản đồ trong khu vực, không tải dữ liệu bản đồ nơi khác. */
 data class MapBounds(val north: Double, val south: Double, val east: Double, val west: Double) {
     companion object {
+        /** Khung chứa cả điểm xuất phát và điểm đến (khi chỉ đường). */
+        fun forRoute(p1: LatLng, p2: LatLng): MapBounds = MapBounds(
+            north = maxOf(p1.latitude, p2.latitude) + 0.05,
+            south = minOf(p1.latitude, p2.latitude) - 0.05,
+            east = maxOf(p1.longitude, p2.longitude) + 0.05,
+            west = minOf(p1.longitude, p2.longitude) - 0.05,
+        )
+
         fun around(center: LatLng, halfSpanDeg: Double) = MapBounds(
             north = center.latitude + halfSpanDeg,
             south = center.latitude - halfSpanDeg,
@@ -65,6 +76,19 @@ data class MapBounds(val north: Double, val south: Double, val east: Double, val
     }
 }
 
+/** Tuyến đường đang chỉ dẫn (từ màn Chi tiết quán -> "Chỉ đường", Người 2). */
+data class ActiveNavigationRoute(
+    val startLocation: LatLng,
+    val destination: RouteDestination,
+    val distanceText: String,
+    val estimatedTimeText: String,
+    val routePoints: List<LatLng>,
+    /** "driving" hoặc "walking". */
+    val mode: String = "driving",
+    /** false = không lấy được đường thực tế, đang vẽ đường thẳng ước lượng. */
+    val isRoadRoute: Boolean = true,
+)
+
 data class MapUiState(
     /** Tỉnh/thành đang chọn (dùng chung cả app). */
     val area: Province = VietnamProvinces.DEFAULT,
@@ -80,11 +104,16 @@ data class MapUiState(
     val places: List<PlaceSummary> = emptyList(),
     /** Quán đang được chọn (bấm vào ghim) -> hiện thẻ tóm tắt. */
     val selectedPlace: PlaceCard? = null,
+    /** Đang chỉ đường tới một quán; null = không. */
+    val activeRoute: ActiveNavigationRoute? = null,
+    /** Thông báo ngắn cho người dùng (vd. cần bật vị trí để chỉ đường). */
+    val message: String? = null,
 ) {
     companion object {
         /** Nửa cạnh khung khi xem một tỉnh/thành: 0,7° ≈ 78 km (tỉnh sau sáp nhập khá rộng). */
         const val PROVINCE_HALF_SPAN_DEG = 0.7
         const val LOCATION_ZOOM = 13.0
+        const val ROUTE_ZOOM = 13.5
         const val PROVINCE_ZOOM = 11.5
     }
 }
@@ -99,6 +128,7 @@ class MapViewModel(
     private val areaRepository: AreaRepository,
     private val dishRepository: DishRepository,
     private val locationRepository: LocationRepository,
+    private val navigationRouteManager: NavigationRouteManager,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MapUiState())
@@ -108,6 +138,7 @@ class MapViewModel(
     private var pendingFocus: LatLng? = null
 
     init {
+        startRouteListener()
         // Quán của khu vực đang chọn (DishRepository tự đổi theo tỉnh)
         viewModelScope.launch {
             dishRepository.getPlaces().catch { emit(emptyList()) }.collect { places ->
@@ -137,6 +168,73 @@ class MapViewModel(
     }
 
     fun hasLocationPermission(): Boolean = locationRepository.hasPermission()
+
+    // ===== Chỉ đường (Người 2) =====
+
+    private fun startRouteListener() {
+        viewModelScope.launch {
+            navigationRouteManager.activeDestination.collect { dest ->
+                if (dest != null) computeRoute(dest, _uiState.value.activeRoute?.mode ?: "driving")
+                else _uiState.update { it.copy(activeRoute = null) }
+            }
+        }
+    }
+
+    /** Tính đường từ vị trí THẬT của người dùng tới quán; chưa có vị trí thì báo, không tự đặt điểm xuất phát. */
+    private suspend fun computeRoute(dest: RouteDestination, mode: String) {
+        _uiState.update { it.copy(status = LocationStatus.Locating, selectedPlace = null) }
+        val me = locationRepository.currentLocation()
+        if (me == null) {
+            navigationRouteManager.clearRoute()
+            _uiState.update {
+                it.copy(
+                    status = if (locationRepository.hasPermission()) LocationStatus.Unavailable else LocationStatus.Denied,
+                    message = "Bật định vị để chỉ đường tới ${dest.placeName}",
+                )
+            }
+            return
+        }
+        val road = RoadRoutingService.fetchRoute(me, dest.location, mode)
+        val meters = road?.distanceMeters
+            ?: GeoUtils.distanceMeters(me.latitude, me.longitude, dest.location.latitude, dest.location.longitude)
+        val seconds = road?.durationSeconds ?: (if (mode == "walking") meters / 1.3 else meters / 8.3)
+        val minutes = maxOf(1, (seconds / 60.0).toInt())
+        val distText = GeoUtils.formatDistance(meters)
+        val route = ActiveNavigationRoute(
+            startLocation = me,
+            destination = dest,
+            distanceText = distText,
+            estimatedTimeText = "$minutes phút ($distText)",
+            // Không lấy được đường thực tế (mất mạng…) -> vẽ đường thẳng và ghi rõ là ước lượng
+            routePoints = road?.points ?: listOf(me, dest.location),
+            mode = mode,
+            isRoadRoute = road != null,
+        )
+        _uiState.update {
+            it.copy(
+                status = LocationStatus.Found,
+                myLocation = me,
+                activeRoute = route,
+                center = LatLng((me.latitude + dest.location.latitude) / 2, (me.longitude + dest.location.longitude) / 2),
+                zoom = MapUiState.ROUTE_ZOOM,
+                bounds = MapBounds.forRoute(me, dest.location),
+                cameraVersion = it.cameraVersion + 1,
+            )
+        }
+    }
+
+    fun setTravelMode(mode: String) {
+        val dest = navigationRouteManager.activeDestination.value ?: return
+        viewModelScope.launch { computeRoute(dest, mode) }
+    }
+
+    fun clearActiveRoute() {
+        navigationRouteManager.clearRoute()
+        // Trả bản đồ về khung của tỉnh đang chọn
+        _uiState.update { it.copy(bounds = MapBounds.forProvince(it.area, include = it.myLocation), cameraVersion = it.cameraVersion + 1) }
+    }
+
+    fun onMessageShown() = _uiState.update { it.copy(message = null) }
 
     /** Mở bản đồ: chỉ lấy vị trí để vẽ chấm xanh, KHÔNG đổi khu vực đang chọn. */
     fun showMyLocationDot() {
@@ -210,7 +308,7 @@ class MapViewModel(
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val container = appContainer()
-                MapViewModel(container.areaRepository, container.dishRepository, container.locationRepository)
+                MapViewModel(container.areaRepository, container.dishRepository, container.locationRepository, container.navigationRouteManager)
             }
         }
     }

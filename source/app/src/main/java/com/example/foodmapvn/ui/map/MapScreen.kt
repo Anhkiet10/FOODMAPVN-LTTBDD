@@ -39,6 +39,12 @@ import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.layers.CircleLayer
+import org.maplibre.android.style.layers.LineLayer
+import org.maplibre.android.style.layers.Property
+import org.maplibre.android.style.layers.PropertyFactory.lineCap
+import org.maplibre.android.style.layers.PropertyFactory.lineColor
+import org.maplibre.android.style.layers.PropertyFactory.lineJoin
+import org.maplibre.android.style.layers.PropertyFactory.lineWidth
 import org.maplibre.android.style.layers.PropertyFactory.circleColor
 import org.maplibre.android.style.layers.PropertyFactory.circleOpacity
 import org.maplibre.android.style.layers.PropertyFactory.circleRadius
@@ -46,6 +52,7 @@ import org.maplibre.android.style.layers.PropertyFactory.circleStrokeColor
 import org.maplibre.android.style.layers.PropertyFactory.circleStrokeWidth
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.geojson.Feature
+import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
 import org.maplibre.android.geometry.LatLng as MapLatLng
 
@@ -55,6 +62,9 @@ private val LOCATION_PERMISSIONS = arrayOf(
 )
 
 private const val MY_LOCATION_SOURCE = "my-location"
+private const val ROUTE_SOURCE = "navigation-route-source"
+private const val ROUTE_LAYER = "navigation-route-layer"
+private const val DEST_SOURCE = "dest-location-source"
 private const val MIN_ZOOM = 9.0 // không cho thu nhỏ ra cả nước -> không tải bản đồ vùng khác
 private const val MAX_ZOOM = 19.0
 
@@ -76,6 +86,13 @@ fun MapRoute(
     LaunchedEffect(Unit) {
         if (viewModel.hasLocationPermission()) viewModel.showMyLocationDot()
     }
+    val context = LocalContext.current
+    LaunchedEffect(state.message) {
+        state.message?.let {
+            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
+            viewModel.onMessageShown()
+        }
+    }
 
     MapScreen(
         state = state,
@@ -86,6 +103,8 @@ fun MapRoute(
         onProvinceSelected = viewModel::selectProvince,
         onPinClick = viewModel::selectPlace,
         onPlaceDetail = onPlaceDetail,
+        onTravelModeChange = viewModel::setTravelMode,
+        onClearRoute = viewModel::clearActiveRoute,
         modifier = modifier,
     )
 }
@@ -102,6 +121,8 @@ fun MapScreen(
     onProvinceSelected: (Province) -> Unit = {},
     onPinClick: (placeId: String?) -> Unit = {},
     onPlaceDetail: (placeId: String) -> Unit = {},
+    onTravelModeChange: (String) -> Unit = {},
+    onClearRoute: () -> Unit = {},
 ) {
     var showPicker by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -144,7 +165,24 @@ fun MapScreen(
                 true
             }
             m.setStyle(Style.Builder().fromUri(MapStyles.DEFAULT)) { s ->
+                // Đường chỉ dẫn nằm dưới cùng, rồi tới ghim quán, trên cùng là chấm "vị trí của tôi"
+                s.addSource(GeoJsonSource(ROUTE_SOURCE))
+                s.addLayer(
+                    LineLayer(ROUTE_LAYER, ROUTE_SOURCE).withProperties(
+                        lineColor("#1A73E8"),
+                        lineWidth(6f),
+                        lineCap(Property.LINE_CAP_ROUND),
+                        lineJoin(Property.LINE_JOIN_ROUND),
+                    )
+                )
                 PlaceLayers.addTo(s, context) // ghim quán nằm dưới chấm "vị trí của tôi"
+                s.addSource(GeoJsonSource(DEST_SOURCE))
+                s.addLayer(CircleLayer("dest-halo", DEST_SOURCE).withProperties(circleRadius(16f), circleColor("#D32F2F"), circleOpacity(0.25f)))
+                s.addLayer(
+                    CircleLayer("dest-dot", DEST_SOURCE).withProperties(
+                        circleRadius(8f), circleColor("#D32F2F"), circleStrokeWidth(2.5f), circleStrokeColor("#FFFFFF"),
+                    )
+                )
                 s.addSource(GeoJsonSource(MY_LOCATION_SOURCE))
                 s.addLayer(
                     CircleLayer("my-location-halo", MY_LOCATION_SOURCE).withProperties(
@@ -194,6 +232,22 @@ fun MapScreen(
             ?.setGeoJson(Feature.fromGeometry(Point.fromLngLat(me.longitude, me.latitude)))
     }
 
+    // Đường chỉ dẫn + điểm đến (Người 2)
+    LaunchedEffect(style, state.activeRoute) {
+        val s = style ?: return@LaunchedEffect
+        val route = state.activeRoute
+        val empty = org.maplibre.geojson.FeatureCollection.fromFeatures(emptyList())
+        if (route != null) {
+            val points = route.routePoints.map { Point.fromLngLat(it.longitude, it.latitude) }
+            s.getSourceAs<GeoJsonSource>(ROUTE_SOURCE)?.setGeoJson(Feature.fromGeometry(LineString.fromLngLats(points)))
+            val d = route.destination.location
+            s.getSourceAs<GeoJsonSource>(DEST_SOURCE)?.setGeoJson(Feature.fromGeometry(Point.fromLngLat(d.longitude, d.latitude)))
+        } else {
+            s.getSourceAs<GeoJsonSource>(ROUTE_SOURCE)?.setGeoJson(empty)
+            s.getSourceAs<GeoJsonSource>(DEST_SOURCE)?.setGeoJson(empty)
+        }
+    }
+
     Box(modifier.fillMaxSize()) {
         AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
 
@@ -207,7 +261,7 @@ fun MapScreen(
                 .padding(12.dp),
         )
 
-        if (state.places.isNotEmpty() && state.selectedPlace == null) {
+        if (state.places.isNotEmpty() && state.selectedPlace == null && state.activeRoute == null) {
             PinLegend(
                 Modifier
                     .align(Alignment.BottomStart)
@@ -221,7 +275,7 @@ fun MapScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(16.dp),
+                .padding(bottom = if (state.activeRoute != null) 210.dp else 16.dp, end = 16.dp),
         ) {
             SmallFloatingActionButton(
                 onClick = { map?.animateCamera(CameraUpdateFactory.zoomIn()) },
@@ -243,7 +297,16 @@ fun MapScreen(
             }
         }
 
-        state.selectedPlace?.let { card ->
+        state.activeRoute?.let { route ->
+            NavigationRouteCard(
+                route = route,
+                onTravelModeChange = onTravelModeChange,
+                onClearRoute = onClearRoute,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
+
+        if (state.activeRoute == null) state.selectedPlace?.let { card ->
             PlaceInfoCard(
                 card = card,
                 onDetailClick = { onPlaceDetail(card.place.id) },
@@ -277,6 +340,7 @@ private fun areaTitle(state: MapUiState): String = state.area.name
 
 private fun areaSubtitle(state: MapUiState, loadFailed: Boolean): String = when {
     loadFailed -> "Không tải được bản đồ OpenFreeMap. Kiểm tra kết nối mạng."
+    state.activeRoute != null -> "Đang chỉ đường tới ${state.activeRoute.destination.placeName}"
     state.status == LocationStatus.Locating -> "Đang xác định vị trí của bạn…"
     state.status == LocationStatus.Denied -> "Chưa có quyền vị trí · chạm để chọn tỉnh/thành khác"
     state.status == LocationStatus.Unavailable -> "Không lấy được vị trí · chạm để chọn tỉnh/thành khác"

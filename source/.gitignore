@@ -19,3 +19,6 @@ app/google-services.json
 # Dữ liệu thô tải từ OpenStreetMap (tools/fetch-osm-places.ps1)
 tools/osm/
 __pycache__/
+
+# Cấu hình Android Studio riêng từng máy: không đưa lên git (tránh xung đột)
+.idea/

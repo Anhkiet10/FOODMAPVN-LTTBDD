@@ -36,6 +36,10 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
+import com.example.foodmapvn.data.fake.FakePlaceRepository
+import com.example.foodmapvn.data.firebase.FirestorePlaceRepository
+import com.example.foodmapvn.data.repository.PlaceRepository
+
 /**
  * Nơi duy nhất tạo các phụ thuộc dùng chung cho cả app (dependency injection thủ công).
  *
@@ -79,7 +83,8 @@ class AppContainer(context: Context) {
     val savedRepository: SavedRepository
     /** Chi tiết đặc sản + quán bán món (UC-08). */
     val dishDetailRepository: DishDetailRepository
-    // (thêm PlaceRepository, ReviewRepository, CheckInRepository… ở đây)
+    /** Chi tiết quán, đánh giá, check-in (UC-09, UC-12, UC-13). */
+    val placeRepository: PlaceRepository
 
     // ===== Người 3: đề xuất, báo cáo, thông báo, admin =====
     // (thêm SuggestionRepository, ReportRepository, NotificationRepository, AdminRepository… ở đây)
@@ -88,6 +93,7 @@ class AppContainer(context: Context) {
     val seeder: FirestoreSeeder?
 
     val locationRepository: LocationRepository = FusedLocationRepository(appContext)
+    val navigationRouteManager = com.example.foodmapvn.data.location.NavigationRouteManager()
 
     val imageUploader: ImageUploader = CloudinaryImageUploader(
         context = appContext,
@@ -108,6 +114,7 @@ class AppContainer(context: Context) {
             // Người 2
             savedRepository = FirestoreSavedRepository(db, auth)
             dishDetailRepository = FirestoreDishDetailRepository(db)
+            placeRepository = FirestorePlaceRepository(db, auth, checkInValidator, trustScoreCalculator)
             // Người 3
         } else {
             Log.i("FoodMap", "Chưa có google-services.json: đang dùng dữ liệu giả")
@@ -121,6 +128,7 @@ class AppContainer(context: Context) {
             // Người 2
             savedRepository = fake.savedRepository
             dishDetailRepository = fake.dishDetailRepository
+            placeRepository = FakePlaceRepository(checkInValidator, trustScoreCalculator)
             // Người 3
         }
     }

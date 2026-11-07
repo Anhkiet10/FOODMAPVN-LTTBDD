@@ -1,6 +1,5 @@
 package com.example.foodmapvn.data.firebase
 
-import com.example.foodmapvn.data.firebase.mapper.cleanDataText
 import com.example.foodmapvn.data.firebase.mapper.toDish
 import com.example.foodmapvn.data.firebase.mapper.toPlaceSummary
 import com.example.foodmapvn.data.model.LatLng
@@ -52,8 +51,8 @@ class FirestorePlaceRepository(
 
                 PlaceDetail(
                     id = doc.id,
-                    name = cleanDataText(doc.getString("name")),
-                    address = cleanDataText(doc.getString("address")),
+                    name = doc.getString("name").orEmpty(),
+                    address = doc.getString("address").orEmpty(),
                     location = LatLng(geo.latitude, geo.longitude),
                     openTime = doc.getString("openTime"),
                     closeTime = doc.getString("closeTime"),

@@ -6,6 +6,8 @@ import com.example.foodmapvn.R
 import com.example.foodmapvn.data.cloudinary.CloudinaryImageUploader
 import com.example.foodmapvn.data.fake.FakeRepositories
 import com.example.foodmapvn.data.firebase.FirebaseAuthRepository
+import com.example.foodmapvn.data.firebase.FirestoreBusinessRepository
+import com.example.foodmapvn.data.firebase.FirestoreDishDetailRepository
 import com.example.foodmapvn.data.firebase.FirestoreDishRepository
 import com.example.foodmapvn.data.firebase.FirestoreSavedRepository
 import com.example.foodmapvn.data.firebase.FirestoreSeeder
@@ -18,6 +20,8 @@ import com.example.foodmapvn.data.repository.SearchHistoryRepository
 import com.example.foodmapvn.data.location.FusedLocationRepository
 import com.example.foodmapvn.data.repository.AreaRepository
 import com.example.foodmapvn.data.repository.AuthRepository
+import com.example.foodmapvn.data.repository.BusinessRepository
+import com.example.foodmapvn.data.repository.DishDetailRepository
 import com.example.foodmapvn.data.repository.DishRepository
 import com.example.foodmapvn.data.repository.ImageUploader
 import com.example.foodmapvn.data.repository.LocationRepository
@@ -68,9 +72,13 @@ class AppContainer(context: Context) {
     val authRepository: AuthRepository
     val dishRepository: DishRepository
     val userRepository: UserRepository
+    /** Đăng ký doanh nghiệp; Người 3 dùng canSuggestPlace() (màn Đề xuất) và review() (Admin). */
+    val businessRepository: BusinessRepository
 
     // ===== Người 2: món, quán, check-in, đánh giá =====
     val savedRepository: SavedRepository
+    /** Chi tiết đặc sản + quán bán món (UC-08). */
+    val dishDetailRepository: DishDetailRepository
     // (thêm PlaceRepository, ReviewRepository, CheckInRepository… ở đây)
 
     // ===== Người 3: đề xuất, báo cáo, thông báo, admin =====
@@ -95,9 +103,11 @@ class AppContainer(context: Context) {
             authRepository = FirebaseAuthRepository(auth, db)
             dishRepository = FirestoreDishRepository(db, areaRepository)
             userRepository = FirestoreUserRepository(db, auth, badgeCalculator)
+            businessRepository = FirestoreBusinessRepository(db, auth)
             seeder = FirestoreSeeder(appContext, db, auth).takeIf { it.isAvailable }
             // Người 2
             savedRepository = FirestoreSavedRepository(db, auth)
+            dishDetailRepository = FirestoreDishDetailRepository(db)
             // Người 3
         } else {
             Log.i("FoodMap", "Chưa có google-services.json: đang dùng dữ liệu giả")
@@ -106,9 +116,11 @@ class AppContainer(context: Context) {
             authRepository = fake.authRepository
             dishRepository = fake.dishRepository
             userRepository = fake.userRepository
+            businessRepository = fake.businessRepository
             seeder = null
             // Người 2
             savedRepository = fake.savedRepository
+            dishDetailRepository = fake.dishDetailRepository
             // Người 3
         }
     }

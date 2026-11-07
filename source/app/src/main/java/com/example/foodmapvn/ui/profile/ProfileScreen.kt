@@ -46,12 +46,14 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.foodmapvn.R
 import com.example.foodmapvn.data.fake.FakeData
 import com.example.foodmapvn.data.model.BadgeStatus
+import com.example.foodmapvn.data.model.BusinessStatus
 import com.example.foodmapvn.data.model.RegionBadge
 import com.example.foodmapvn.data.model.ReviewSummary
 import com.example.foodmapvn.data.model.UserProfile
 import com.example.foodmapvn.ui.components.ProgressBar
 import com.example.foodmapvn.ui.components.StarRating
 import com.example.foodmapvn.ui.theme.Amber
+import com.example.foodmapvn.ui.theme.BrickRed
 import com.example.foodmapvn.ui.theme.FoodmapvnTheme
 import com.example.foodmapvn.ui.theme.InkTertiary
 import com.example.foodmapvn.ui.theme.Sand
@@ -64,6 +66,15 @@ import com.example.foodmapvn.ui.theme.SuccessGreenSoft
 fun ProfileRoute(
     onLoginClick: () -> Unit,
     onEditProfileClick: () -> Unit = {},
+    onNotificationsClick: () -> Unit = {},
+    onSettingsClick: () -> Unit = {},
+    onSeeAllReviewsClick: () -> Unit = {},
+    onReviewPlaceClick: (placeId: String) -> Unit = {},
+    onWishlistClick: () -> Unit = {},
+    onMySuggestionsClick: () -> Unit = {},
+    onAdminClick: () -> Unit = {},
+    onBusinessClick: () -> Unit = {},
+    onNewSuggestionClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: ProfileViewModel = viewModel(factory = ProfileViewModel.Factory),
 ) {
@@ -78,6 +89,15 @@ fun ProfileRoute(
             state = current.data,
             onSignOutClick = viewModel::signOut,
             onEditProfileClick = onEditProfileClick,
+            onNotificationsClick = onNotificationsClick,
+            onSettingsClick = onSettingsClick,
+            onSeeAllReviewsClick = onSeeAllReviewsClick,
+            onReviewClick = { review -> if (review.placeId.isNotBlank()) onReviewPlaceClick(review.placeId) },
+            onWishlistClick = onWishlistClick,
+            onMySuggestionsClick = onMySuggestionsClick,
+            onAdminClick = onAdminClick,
+            onBusinessClick = onBusinessClick,
+            onNewSuggestionClick = onNewSuggestionClick,
             canSeed = viewModel.canSeed,
             seedMessage = seedMessage,
             onSeedClick = viewModel::seedSampleData,
@@ -152,7 +172,9 @@ fun ProfileScreen(
     onReviewClick: (ReviewSummary) -> Unit = {},
     onWishlistClick: () -> Unit = {},
     onMySuggestionsClick: () -> Unit = {},
-    onOfflineDataClick: () -> Unit = {},
+    onAdminClick: () -> Unit = {},
+    onBusinessClick: () -> Unit = {},
+    onNewSuggestionClick: () -> Unit = {},
     onSignOutClick: () -> Unit = {},
     onEditProfileClick: () -> Unit = {},
     canSeed: Boolean = false,
@@ -186,7 +208,7 @@ fun ProfileScreen(
         Spacer(Modifier.height(16.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             SectionTitle("Đánh giá gần đây", Modifier.weight(1f))
-            Text(
+            if (state.recentReviews.isNotEmpty()) Text(
                 "Xem tất cả",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
@@ -197,6 +219,13 @@ fun ProfileScreen(
             )
         }
         Spacer(Modifier.height(8.dp))
+        if (state.recentReviews.isEmpty()) {
+            Text(
+                "Bạn chưa viết đánh giá nào. Check-in tại quán rồi đánh giá để nhận huy hiệu nhé!",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             state.recentReviews.forEach { review ->
                 ReviewCard(review, onClick = { onReviewClick(review) })
@@ -206,10 +235,30 @@ fun ProfileScreen(
         Spacer(Modifier.height(12.dp))
         MenuRow("Món muốn ăn", state.wishlistCount, onWishlistClick)
         MenuDivider()
-        MenuRow("Đề xuất quán của tôi", state.mySuggestionCount, onMySuggestionsClick)
+        // Đề xuất quán (UC-14): chỉ doanh nghiệp đã được Admin xác minh
+        MenuRow(
+            "Doanh nghiệp của tôi",
+            null,
+            onBusinessClick,
+            trailing = state.businessStatus?.label ?: "Đăng ký",
+            trailingColor = when (state.businessStatus) {
+                BusinessStatus.APPROVED -> SuccessGreen
+                BusinessStatus.REJECTED -> BrickRed
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        )
         MenuDivider()
-        MenuRow("Tải dữ liệu vùng để dùng offline", null, onOfflineDataClick)
-        MenuDivider()
+        if (state.businessStatus == BusinessStatus.APPROVED) {
+            MenuRow("Đề xuất quán mới", null, onNewSuggestionClick)
+            MenuDivider()
+            MenuRow("Đề xuất quán của tôi", state.mySuggestionCount, onMySuggestionsClick)
+            MenuDivider()
+        }
+        // "Tải dữ liệu vùng để dùng offline": tạm ẩn — hạng mục cắt đầu tiên nếu thiếu thời gian (Kế hoạch mục 6)
+        if (state.isAdmin) {
+            MenuRow("Quản trị (duyệt đề xuất, xử lý báo cáo)", null, onAdminClick)
+            MenuDivider()
+        }
         if (canSeed) {
             // Chỉ có ở bản debug: nạp app/src/debug/assets/seed-data.json lên Firestore
             MenuRow("Nạp dữ liệu mẫu (debug, cần role admin)", null, onSeedClick)
@@ -390,7 +439,7 @@ private fun RegionBadgeRow(badge: RegionBadge) {
 }
 
 @Composable
-private fun ReviewCard(review: ReviewSummary, onClick: () -> Unit) {
+internal fun ReviewCard(review: ReviewSummary, onClick: () -> Unit) {
     val shape = RoundedCornerShape(12.dp)
     Row(
         Modifier
@@ -427,7 +476,13 @@ private fun ReviewCard(review: ReviewSummary, onClick: () -> Unit) {
 }
 
 @Composable
-private fun MenuRow(label: String, count: Int?, onClick: () -> Unit) {
+private fun MenuRow(
+    label: String,
+    count: Int?,
+    onClick: () -> Unit,
+    trailing: String? = null,
+    trailingColor: Color = Color.Unspecified,
+) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -438,6 +493,10 @@ private fun MenuRow(label: String, count: Int?, onClick: () -> Unit) {
         Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
         if (count != null) {
             Text("$count", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.width(6.dp))
+        }
+        if (trailing != null) {
+            Text(trailing, style = MaterialTheme.typography.labelLarge, color = trailingColor)
             Spacer(Modifier.width(6.dp))
         }
         Icon(

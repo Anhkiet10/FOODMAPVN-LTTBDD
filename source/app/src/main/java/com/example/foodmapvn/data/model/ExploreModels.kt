@@ -20,4 +20,8 @@ data class PlaceSummary(
     val dishIds: List<String>,
     /** Giá thấp nhất trong menu theo từng món (đồng). */
     val minPriceByDish: Map<String, Long> = emptyMap(),
+    /** Loại món chính của quán -> icon ghim trên bản đồ (Admin chọn). */
+    val category: FoodCategory = FoodCategory.OTHER,
+    /** false = chưa có đánh giá nào (reviewCount = 0): ghim viền xám nhạt, không hiện điểm uy tín. */
+    val hasReviews: Boolean = true,
 )

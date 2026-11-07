@@ -275,7 +275,7 @@ private fun SearchPreview() {
                 dishes = listOf(Dish("bun-bo-hue", "Bún bò Huế", 12, "350 m", priceRange = "35.000–50.000đ", priceUnit = "tô", art = FoodArtType.BUN_BO)),
                 places = listOf(
                     PlaceResult(
-                        PlaceSummary("p1", "Bún bò O Hạnh", "Phú Hội", LatLng(16.46, 107.59), "06:00", "21:00", 89, true, false, 4.6, listOf("bun-bo-hue")),
+                        PlaceSummary("p1", "Bún bò Mẫu A (Mẫu)", "Phú Hội", LatLng(16.46, 107.59), "06:00", "21:00", 89, true, false, 4.6, listOf("bun-bo-hue")),
                         "350 m", true,
                     )
                 ),

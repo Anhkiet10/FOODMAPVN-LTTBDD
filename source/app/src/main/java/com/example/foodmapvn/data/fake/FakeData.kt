@@ -71,26 +71,26 @@ object FakeData {
     )
 
     val savedDishes = listOf(
-        SavedDish("s1", "Bún bò Huế", "O Hạnh", "350 m", isEaten = true, art = FoodArtType.BUN_BO),
-        SavedDish("s2", "Cơm hến", "Bà Nở", "1,1 km", isEaten = true, art = FoodArtType.COM_HEN),
-        SavedDish("s3", "Chè Huế", "Chè Hẻm", "600 m", isEaten = true, art = FoodArtType.CHE),
+        SavedDish("s1", "Bún bò Huế", "Bún bò Mẫu A", "350 m", isEaten = true, art = FoodArtType.BUN_BO),
+        SavedDish("s2", "Cơm hến", "Cơm hến Mẫu E", "1,1 km", isEaten = true, art = FoodArtType.COM_HEN),
+        SavedDish("s3", "Chè Huế", "Chè Mẫu D (Mẫu)", "600 m", isEaten = true, art = FoodArtType.CHE),
         SavedDish("s4", "Bánh canh Nam Phổ", null, null, isEaten = false, art = FoodArtType.BUN_BO),
-        SavedDish("s5", "Bánh khoái", "Lạc Thiện", "1,4 km", isEaten = false, art = FoodArtType.COM_HEN),
+        SavedDish("s5", "Bánh khoái", "Bánh khoái Mẫu G", "1,4 km", isEaten = false, art = FoodArtType.COM_HEN),
     )
 
     val savedPlaces = listOf(
-        SavedPlace("p1", "Bún bò O Hạnh", "Bún bò Huế", "350 m", trustScore = 89, art = FoodArtType.BUN_BO),
-        SavedPlace("p2", "Chè Hẻm", "Chè Huế", "600 m", trustScore = 86, art = FoodArtType.CHE),
-        SavedPlace("p3", "Cơm hến Bà Nở", "Cơm hến", "1,1 km", trustScore = 84, art = FoodArtType.COM_HEN),
+        SavedPlace("p1", "Bún bò Mẫu A (Mẫu)", "Bún bò Huế", "350 m", trustScore = 89, art = FoodArtType.BUN_BO),
+        SavedPlace("p2", "Chè Mẫu D (Mẫu)", "Chè Huế", "600 m", trustScore = 86, art = FoodArtType.CHE),
+        SavedPlace("p3", "Cơm hến Mẫu E (Mẫu)", "Cơm hến", "1,1 km", trustScore = 84, art = FoodArtType.COM_HEN),
     )
 
     /** Toạ độ quanh trung tâm Huế, chỉ để thử bản đồ. */
     val placePins = listOf(
-        PlacePin("p1", "Bún bò O Hạnh", LatLng(16.4655, 107.5905), trustScore = 89, hasPriceWarning = false),
-        PlacePin("p2", "Chè Hẻm", LatLng(16.4690, 107.5960), trustScore = 86, hasPriceWarning = false),
-        PlacePin("p3", "Cơm hến Bà Nở", LatLng(16.4720, 107.5850), trustScore = 84, hasPriceWarning = false),
+        PlacePin("p1", "Bún bò Mẫu A (Mẫu)", LatLng(16.4655, 107.5905), trustScore = 89, hasPriceWarning = false),
+        PlacePin("p2", "Chè Mẫu D (Mẫu)", LatLng(16.4690, 107.5960), trustScore = 86, hasPriceWarning = false),
+        PlacePin("p3", "Cơm hến Mẫu E (Mẫu)", LatLng(16.4720, 107.5850), trustScore = 84, hasPriceWarning = false),
         PlacePin("p4", "Bánh canh Nam Phổ", LatLng(16.4610, 107.5980), trustScore = 80, hasPriceWarning = false),
-        PlacePin("p5", "Hoàng Cung", LatLng(16.4680, 107.5880), trustScore = 58, hasPriceWarning = true),
+        PlacePin("p5", "Nhà hàng Mẫu C (Mẫu)", LatLng(16.4680, 107.5880), trustScore = 58, hasPriceWarning = true),
     )
 
     val routeSuggestion = RouteSuggestion(
@@ -115,7 +115,7 @@ object FakeData {
     )
 
     val recentReviews = listOf(
-        ReviewSummary("r1", "Bún bò O Hạnh", rating = 5, isCheckedIn = true, price = "45.000đ"),
-        ReviewSummary("r2", "Chè Hẻm Huế", rating = 4, isCheckedIn = true, price = "15.000đ"),
+        ReviewSummary("r1", "Bún bò Mẫu A (Mẫu)", rating = 5, isCheckedIn = true, price = "45.000đ", placeId = "p1"),
+        ReviewSummary("r2", "Chè Mẫu D (Mẫu)", rating = 4, isCheckedIn = true, price = "15.000đ", placeId = "p2"),
     )
 }

@@ -15,3 +15,7 @@
 local.properties
 # Firebase config (mỗi người tự tải từ Firebase Console)
 app/google-services.json
+
+# Dữ liệu thô tải từ OpenStreetMap (tools/fetch-osm-places.ps1)
+tools/osm/
+__pycache__/

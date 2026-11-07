@@ -16,6 +16,7 @@ class FakeUserRepository : UserRepository {
     override fun getUser(): Flow<UserProfile> = user
     override fun getRegionBadges(): Flow<List<RegionBadge>> = flowOf(FakeData.regionBadges)
     override fun getRecentReviews(): Flow<List<ReviewSummary>> = flowOf(FakeData.recentReviews)
+    override fun getAllReviews(): Flow<List<ReviewSummary>> = flowOf(FakeData.recentReviews)
     override fun hasUnreadNotification(): Flow<Boolean> = flowOf(true)
 
     override suspend fun updateProfile(name: String, avatarUrl: String?): Result<Unit> {

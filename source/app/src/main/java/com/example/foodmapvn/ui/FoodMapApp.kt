@@ -14,7 +14,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
+import androidx.navigation.navArgument
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.foodmapvn.data.model.Dish
@@ -27,11 +29,15 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import com.example.foodmapvn.ui.auth.RegisterRoute
+import com.example.foodmapvn.ui.business.BusinessRegisterRoute
+import com.example.foodmapvn.ui.dish.DishDetailRoute
 import com.example.foodmapvn.ui.explore.ExploreRoute
 import com.example.foodmapvn.ui.map.MapRoute
 import com.example.foodmapvn.ui.navigation.AppBottomBar
 import com.example.foodmapvn.ui.navigation.MainTab
 import com.example.foodmapvn.ui.navigation.Routes
+import com.example.foodmapvn.ui.profile.MyReviewsRoute
+import com.example.foodmapvn.ui.settings.SettingsRoute
 import com.example.foodmapvn.ui.profile.EditProfileRoute
 import com.example.foodmapvn.ui.profile.ProfileRoute
 import com.example.foodmapvn.ui.region.RegionSelectRoute
@@ -68,6 +74,15 @@ fun FoodMapApp() {
             val loginGate = remember(navController) {
                 LoginGate(isLoggedIn = { currentUser != null }, openLogin = { navController.navigate(Routes.LOGIN) })
             }
+            // "Cổng doanh nghiệp" cho Đề xuất quán (UC-14): chỉ doanh nghiệp đã được duyệt mới mở được
+            // màn Đề xuất (Người 3); chưa đăng ký / đang chờ duyệt -> mở màn Đăng ký doanh nghiệp.
+            val canSuggestPlace by container.businessRepository.canSuggestPlace().collectAsState(initial = false)
+            val openNewSuggestion: () -> Unit = {
+                loginGate.requireLogin {
+                    if (canSuggestPlace) navController.navigateIfReady(Routes.SUGGESTION_NEW, context, "Đề xuất quán")
+                    else navController.navigate(Routes.BUSINESS_REGISTER)
+                }
+            }
             // Thống kê: mỗi lần chuyển màn gửi screen_view (tên = route, vd. "place/{placeId}")
             DisposableEffect(navController) {
                 val listener = androidx.navigation.NavController.OnDestinationChangedListener { _, destination, _ ->
@@ -103,6 +118,16 @@ fun FoodMapApp() {
                         onRegionClick = { navController.navigate(Routes.REGION_SELECT) },
                         onSearchClick = { navController.navigate(Routes.SEARCH) },
                         onEditProfileClick = { navController.navigate(Routes.PROFILE_EDIT) },
+                        onSettingsClick = { navController.navigate(Routes.SETTINGS) },
+                        onMyReviewsClick = { navController.navigate(Routes.MY_REVIEWS) },
+                        // 3 màn của Người 3: chưa có thì báo nhẹ, không crash
+                        onNotificationsClick = { navController.navigateIfReady(Routes.NOTIFICATIONS, context, "Thông báo") },
+                        onMySuggestionsClick = { navController.navigateIfReady(Routes.SUGGESTION_MINE, context, "Đề xuất của tôi") },
+                        onAdminClick = { navController.navigateIfReady(Routes.ADMIN, context, "Quản trị") },
+                        onBusinessClick = { navController.navigate(Routes.BUSINESS_REGISTER) },
+                        onNewSuggestionClick = openNewSuggestion,
+                        // Màn Chi tiết quán là của Người 2: chưa có thì báo nhẹ, không crash
+                        onPlaceClick = { navController.navigateIfReady(Routes.place(it), context, "Chi tiết quán") },
                         // Màn Chi tiết đặc sản là của Người 2: chưa có thì báo nhẹ, không crash
                         onDishClick = { navController.navigateIfReady(Routes.dish(it.id), context, "Chi tiết đặc sản") },
                     )
@@ -144,9 +169,38 @@ fun FoodMapApp() {
                         onBack = { navController.popBackStack() },
                     )
                 }
+                composable(Routes.MY_REVIEWS) {
+                    MyReviewsRoute(
+                        onBack = { navController.popBackStack() },
+                        onPlaceClick = { navController.navigateIfReady(Routes.place(it), context, "Chi tiết quán") },
+                    )
+                }
+                composable(Routes.BUSINESS_REGISTER) {
+                    BusinessRegisterRoute(
+                        onBack = { navController.popBackStack() },
+                        onNewSuggestionClick = openNewSuggestion,
+                    )
+                }
+                composable(Routes.SETTINGS) {
+                    SettingsRoute(
+                        onBack = { navController.popBackStack() },
+                        onRegionClick = { navController.navigate(Routes.REGION_SELECT) },
+                    )
+                }
 
                 // ===== Người 2: món, quán, check-in, đánh giá =====
-                // (thêm: Routes.DISH, Routes.PLACE, Routes.PLACE_REVIEWS, Routes.CHECKIN, Routes.REVIEW)
+                // UC-08 Chi tiết đặc sản + UC-10 Lưu vào Món muốn ăn
+                composable(
+                    route = Routes.DISH,
+                    arguments = listOf(navArgument(Routes.ARG_DISH_ID) { type = NavType.StringType }),
+                ) {
+                    DishDetailRoute(
+                        onBack = { navController.popBackStack() },
+                        // Chi tiết quán (Tuần 2 của Người 2): chưa có thì báo nhẹ, không crash
+                        onPlaceClick = { navController.navigateIfReady(Routes.place(it), context, "Chi tiết quán") },
+                    )
+                }
+                // (thêm: Routes.PLACE, Routes.PLACE_REVIEWS, Routes.CHECKIN, Routes.REVIEW)
 
                 // ===== Người 3: đề xuất, báo cáo, thông báo, admin =====
                 // (thêm: Routes.SUGGESTION_NEW, Routes.SUGGESTION_MINE, Routes.REPORT, Routes.NOTIFICATIONS, Routes.ADMIN)
@@ -162,6 +216,14 @@ private fun MainTabs(
     onRegionClick: () -> Unit,
     onSearchClick: () -> Unit,
     onEditProfileClick: () -> Unit,
+    onSettingsClick: () -> Unit,
+    onMyReviewsClick: () -> Unit,
+    onNotificationsClick: () -> Unit,
+    onMySuggestionsClick: () -> Unit,
+    onAdminClick: () -> Unit,
+    onBusinessClick: () -> Unit,
+    onNewSuggestionClick: () -> Unit,
+    onPlaceClick: (placeId: String) -> Unit,
     onDishClick: (Dish) -> Unit,
 ) {
     var currentTab by rememberSaveable { mutableStateOf(MainTab.EXPLORE) }
@@ -182,9 +244,22 @@ private fun MainTabs(
                     onSearchClick = onSearchClick,
                     onDishClick = onDishClick,
                 )
-                MainTab.MAP -> MapRoute()
+                MainTab.MAP -> MapRoute(onPlaceDetail = onPlaceClick)
                 MainTab.SAVED -> SavedRoute()
-                MainTab.PROFILE -> ProfileRoute(onLoginClick = onLoginClick, onEditProfileClick = onEditProfileClick)
+                MainTab.PROFILE -> ProfileRoute(
+                    onLoginClick = onLoginClick,
+                    onEditProfileClick = onEditProfileClick,
+                    onNotificationsClick = onNotificationsClick,
+                    onSettingsClick = onSettingsClick,
+                    onSeeAllReviewsClick = onMyReviewsClick,
+                    onReviewPlaceClick = onPlaceClick,
+                    // "Món muốn ăn" = danh sách món đã lưu -> chuyển sang tab Đã lưu
+                    onWishlistClick = { currentTab = MainTab.SAVED },
+                    onMySuggestionsClick = onMySuggestionsClick,
+                    onAdminClick = onAdminClick,
+                    onBusinessClick = onBusinessClick,
+                    onNewSuggestionClick = onNewSuggestionClick,
+                )
             }
         }
     }

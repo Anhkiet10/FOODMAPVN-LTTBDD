@@ -34,9 +34,14 @@ class FirestoreSeeder(
         debuggable && runCatching { context.assets.open(ASSET_NAME).close() }.isSuccess
     }
 
+    /** Số quán cũ (của dữ liệu mẫu trước) đã xoá ở lần nạp gần nhất. */
+    var lastRemovedCount: Int = 0
+        private set
+
     /** Trả về số document đã ghi. */
     suspend fun seed(): Result<Int> = withContext(Dispatchers.IO) {
         runCatching {
+            var removedCount = 0
             val uid = auth.currentUser?.uid ?: error("Hãy đăng nhập trước khi nạp dữ liệu mẫu")
             val userRef = db.collection(FirestorePaths.USERS).document(uid)
             val userSnap = userRef.get().awaitTask()
@@ -48,12 +53,31 @@ class FirestoreSeeder(
             var count = 0
 
             // 1. Danh mục (thứ tự quan trọng vì khoá ngoại)
+            // Ghi theo lô (tối đa 500 thao tác/lô; dùng 400) -> ~2.000 document chỉ mất vài giây.
+            // Hết collection mới sang collection sau, nên vùng luôn có trước món/quán (Rules kiểm tra khoá ngoại).
             for (collection in listOf(FirestorePaths.REGIONS, FirestorePaths.DISHES, FirestorePaths.PLACES, FirestorePaths.CONFIG)) {
                 val docs = root.optJSONObject(collection) ?: continue
-                for (id in docs.keys()) {
-                    db.collection(collection).document(id).set(toMap(docs.getJSONObject(id))).awaitTask()
-                    count++
+                batchesOf(docs).forEach { ids ->
+                    val batch = db.batch()
+                    ids.forEach { id -> batch.set(db.collection(collection).document(id), toMap(docs.getJSONObject(id))) }
+                    batch.commit().awaitTask()
+                    count += ids.size
                 }
+            }
+
+            // 1b. Dọn quán do dữ liệu mẫu CŨ tạo ra mà bản mới không còn (vd. quán không bán đặc sản).
+            // Chỉ xoá ID "osm-…" / "mau-…" (do file seed sinh ra), không đụng quán người dùng đề xuất.
+            root.optJSONObject(FirestorePaths.PLACES)?.let { newPlaces ->
+                val keep = newPlaces.keys().asSequence().toSet()
+                val stale = db.collection(FirestorePaths.PLACES).get().awaitTask().documents
+                    .map { it.id }
+                    .filter { (it.startsWith("osm-") || it.startsWith("mau-")) && it !in keep }
+                stale.chunked(BATCH_SIZE).forEach { ids ->
+                    val batch = db.batch()
+                    ids.forEach { batch.delete(db.collection(FirestorePaths.PLACES).document(it)) }
+                    batch.commit().awaitTask()
+                }
+                removedCount = stale.size
             }
 
             // 2. Dữ liệu demo của tài khoản đang đăng nhập
@@ -83,8 +107,34 @@ class FirestoreSeeder(
                     }
                 }
             }
+            lastRemovedCount = removedCount
             count
         }
+    }
+
+    /**
+     * Chia document thành các lô: ≤ [BATCH_SIZE] document và ≤ [MAX_REGIONS_PER_BATCH] tỉnh khác nhau.
+     * Rules kiểm tra regionExists() cho từng món/quán; một lô chỉ được gọi exists/get tới khoảng 20
+     * document khác nhau, nên gom theo tỉnh để không vượt giới hạn.
+     */
+    private fun batchesOf(docs: JSONObject): List<List<String>> {
+        val ids = docs.keys().asSequence().toList()
+            .sortedBy { docs.getJSONObject(it).optString("regionId") }
+        val result = mutableListOf<List<String>>()
+        var current = mutableListOf<String>()
+        val regions = mutableSetOf<String>()
+        for (id in ids) {
+            val region = docs.getJSONObject(id).optString("regionId")
+            if (current.size >= BATCH_SIZE || (region !in regions && regions.size >= MAX_REGIONS_PER_BATCH)) {
+                result += current
+                current = mutableListOf()
+                regions.clear()
+            }
+            current += id
+            regions += region
+        }
+        if (current.isNotEmpty()) result += current
+        return result
     }
 
     /** JSONObject -> Map cho Firestore, đổi các giá trị đặc biệt (_geo, _serverTimestamp, _date). */
@@ -108,6 +158,8 @@ class FirestoreSeeder(
 
     companion object {
         const val ASSET_NAME = "seed-data.json"
+        private const val BATCH_SIZE = 400
+        private const val MAX_REGIONS_PER_BATCH = 10
         private val DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd", Locale.US)
     }
 }

@@ -2,6 +2,7 @@ package com.example.foodmapvn.data.fake
 
 import com.example.foodmapvn.data.local.VietnamProvinces
 import com.example.foodmapvn.data.model.Dish
+import com.example.foodmapvn.data.model.FoodCategory
 import com.example.foodmapvn.data.model.LatLng
 import com.example.foodmapvn.data.model.PlacePin
 import com.example.foodmapvn.data.model.PlaceSummary
@@ -29,11 +30,11 @@ class FakeDishRepository(private val areaRepository: AreaRepository) : DishRepos
 
     private companion object {
         val FAKE_PLACES = listOf(
-            PlaceSummary("p1", "Bún bò O Hạnh", "Phú Hội, Huế", LatLng(16.4655, 107.5905), "06:00", "21:00", 89, true, false, 4.6, listOf("bun-bo-hue"), mapOf("bun-bo-hue" to 35_000L)),
-            PlaceSummary("p2", "Chè Hẻm", "Hùng Vương, Huế", LatLng(16.4690, 107.5960), "09:00", "22:30", 86, true, false, 4.5, listOf("che-hue"), mapOf("che-hue" to 15_000L)),
-            PlaceSummary("p3", "Cơm hến Bà Nở", "Cồn Hến, Huế", LatLng(16.4720, 107.5850), "06:30", "14:00", 84, true, false, 4.4, listOf("com-hen"), mapOf("com-hen" to 20_000L)),
-            PlaceSummary("p4", "Bánh canh Nam Phổ", "Phú Hội, Huế", LatLng(16.4610, 107.5980), "15:00", "21:00", 80, false, false, 4.2, listOf("banh-canh-nam-pho"), mapOf("banh-canh-nam-pho" to 25_000L)),
-            PlaceSummary("p5", "Hoàng Cung", "Lê Lợi, Huế", LatLng(16.4680, 107.5880), "10:00", "22:00", 58, false, true, 3.6, listOf("bun-bo-hue", "com-hen"), mapOf("bun-bo-hue" to 80_000L, "com-hen" to 60_000L)),
+            PlaceSummary("p1", "Bún bò Mẫu A (Mẫu)", "Phú Hội, Huế", LatLng(16.4655, 107.5905), "06:00", "21:00", 89, true, false, 4.6, listOf("bun-bo-hue"), mapOf("bun-bo-hue" to 35_000L), category = FoodCategory.NOODLE_SOUP),
+            PlaceSummary("p2", "Chè Mẫu D (Mẫu)", "Hùng Vương, Huế", LatLng(16.4690, 107.5960), "09:00", "22:30", 86, true, false, 4.5, listOf("che-hue"), mapOf("che-hue" to 15_000L), category = FoodCategory.DESSERT),
+            PlaceSummary("p3", "Cơm hến Mẫu E (Mẫu)", "Cồn Hến, Huế", LatLng(16.4720, 107.5850), "06:30", "14:00", 84, true, false, 4.4, listOf("com-hen"), mapOf("com-hen" to 20_000L), category = FoodCategory.RICE),
+            PlaceSummary("p4", "Bánh canh Nam Phổ", "Phú Hội, Huế", LatLng(16.4610, 107.5980), "15:00", "21:00", 80, false, false, 4.2, listOf("banh-canh-nam-pho"), mapOf("banh-canh-nam-pho" to 25_000L), category = FoodCategory.NOODLE_SOUP),
+            PlaceSummary("p5", "Nhà hàng Mẫu C (Mẫu)", "Lê Lợi, Huế", LatLng(16.4680, 107.5880), "10:00", "22:00", 58, false, true, 3.6, listOf("bun-bo-hue", "com-hen"), mapOf("bun-bo-hue" to 80_000L, "com-hen" to 60_000L), category = FoodCategory.NOODLE_SOUP),
         )
     }
 }

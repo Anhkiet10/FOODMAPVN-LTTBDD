@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.foodmapvn.data.firebase.FirestoreSeeder
 import com.example.foodmapvn.data.repository.AuthRepository
+import com.example.foodmapvn.data.repository.BusinessRepository
 import com.example.foodmapvn.data.repository.SavedRepository
 import com.example.foodmapvn.data.repository.UserRepository
 import com.example.foodmapvn.di.appContainer
@@ -33,6 +34,7 @@ class ProfileViewModel(
     userRepository: UserRepository,
     savedRepository: SavedRepository,
     private val authRepository: AuthRepository,
+    private val businessRepository: BusinessRepository,
     private val seeder: FirestoreSeeder? = null,
 ) : ViewModel() {
 
@@ -46,7 +48,10 @@ class ProfileViewModel(
         viewModelScope.launch {
             _seedMessage.value = "Đang nạp dữ liệu mẫu…"
             _seedMessage.value = s.seed().fold(
-                onSuccess = { "Đã nạp $it document lên Firestore" },
+                onSuccess = {
+                    val removed = s.lastRemovedCount
+                    "Đã nạp $it document lên Firestore" + if (removed > 0) ", xoá $removed quán mẫu cũ" else ""
+                },
                 onFailure = { "Lỗi: ${it.message}" },
             )
         }
@@ -62,16 +67,18 @@ class ProfileViewModel(
                 userRepository.getRecentReviews(),
                 savedRepository.getSavedDishes(),
             ) { profile, hasUnread, badges, reviews, savedDishes ->
-                ProfileScreenState.Content(
-                    ProfileUiState(
-                        user = profile,
-                        hasUnreadNotification = hasUnread,
-                        regionBadges = badges,
-                        recentReviews = reviews,
-                        wishlistCount = savedDishes.size,
-                        mySuggestionCount = profile.suggestedPlaceCount,
-                    )
+                ProfileUiState(
+                    user = profile,
+                    hasUnreadNotification = hasUnread,
+                    regionBadges = badges,
+                    recentReviews = reviews,
+                    wishlistCount = savedDishes.size,
+                    mySuggestionCount = profile.suggestedPlaceCount,
                 )
+            }.combine(authRepository.isAdmin) { data, isAdmin ->
+                data.copy(isAdmin = isAdmin)
+            }.combine(businessRepository.getMyBusiness()) { data, business ->
+                ProfileScreenState.Content(data.copy(businessStatus = business?.status))
             }
         }
         .stateIn(
@@ -90,6 +97,7 @@ class ProfileViewModel(
                     userRepository = container.userRepository,
                     savedRepository = container.savedRepository,
                     authRepository = container.authRepository,
+                    businessRepository = container.businessRepository,
                     seeder = container.seeder,
                 )
             }

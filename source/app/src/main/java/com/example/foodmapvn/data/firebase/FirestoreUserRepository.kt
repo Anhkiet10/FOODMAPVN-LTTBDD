@@ -43,14 +43,19 @@ class FirestoreUserRepository(
             .onStart { emit(emptyList()) }
     }
 
+    /** 5 đánh giá gần nhất (màn Hồ sơ). */
+    override fun getRecentReviews(): Flow<List<ReviewSummary>> = myReviews(limit = 5)
+
+    override fun getAllReviews(): Flow<List<ReviewSummary>> = myReviews(limit = null)
+
     /** Lấy đánh giá của người dùng rồi sắp xếp trong app (không cần tạo index trên Firestore). */
-    override fun getRecentReviews(): Flow<List<ReviewSummary>> = auth.uidFlow().flatMapLatest { uid ->
+    private fun myReviews(limit: Int?): Flow<List<ReviewSummary>> = auth.uidFlow().flatMapLatest { uid ->
         if (uid == null) flowOf(emptyList())
         else db.collection(FirestorePaths.REVIEWS).whereEqualTo("userId", uid).asFlow()
             .map { snapshot ->
                 snapshot.documents
                     .sortedByDescending { it.time("createdAt") }
-                    .take(5)
+                    .let { if (limit != null) it.take(limit) else it }
                     .map { it.toReviewSummary() }
             }
             .onStart { emit(emptyList()) }

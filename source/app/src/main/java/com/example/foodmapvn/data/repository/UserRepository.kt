@@ -10,6 +10,8 @@ interface UserRepository {
     fun getUser(): Flow<UserProfile>
     fun getRegionBadges(): Flow<List<RegionBadge>>
     fun getRecentReviews(): Flow<List<ReviewSummary>>
+    /** Tất cả đánh giá của tôi, mới nhất trước (màn "Đánh giá của tôi"). */
+    fun getAllReviews(): Flow<List<ReviewSummary>>
     fun hasUnreadNotification(): Flow<Boolean>
 
     /**

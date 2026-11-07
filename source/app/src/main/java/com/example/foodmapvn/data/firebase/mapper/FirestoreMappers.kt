@@ -2,6 +2,7 @@ package com.example.foodmapvn.data.firebase.mapper
 
 import com.example.foodmapvn.data.model.Dish
 import com.example.foodmapvn.data.model.FoodArtType
+import com.example.foodmapvn.data.model.FoodCategory
 import com.example.foodmapvn.data.model.LatLng
 import com.example.foodmapvn.data.model.PlacePin
 import com.example.foodmapvn.data.model.RegionBadge
@@ -50,6 +51,7 @@ fun DocumentSnapshot.toDish(): Dish {
         photoCount = strings("photos").size.coerceAtLeast(1),
         imageUrl = str("imageUrl"),
         priceLow = low,
+        category = FoodCategory.from(str("category")),
     )
 }
 
@@ -114,4 +116,6 @@ fun DocumentSnapshot.toReviewSummary() = ReviewSummary(
     rating = int("stars"),
     isCheckedIn = bool("hasCheckIn") ?: false,
     price = long("price")?.let { "${formatVnd(it)}đ" } ?: "",
+    // id đánh giá = "{placeId}_{uid}" (mục 8.1) nên thiếu trường placeId vẫn suy ra được
+    placeId = str("placeId") ?: id.substringBeforeLast('_'),
 )

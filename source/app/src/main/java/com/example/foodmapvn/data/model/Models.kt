@@ -18,6 +18,8 @@ data class Dish(
     val imageUrl: String? = null,
     /** Giá thấp của mặt bằng giá (priceP25, đồng) — dùng cho bộ lọc giá; null = chưa có giá. */
     val priceLow: Long? = null,
+    /** Loại món (icon trên bản đồ, bộ lọc). */
+    val category: FoodCategory = FoodCategory.OTHER,
 )
 
 /** Món trong danh sách "Món muốn ăn". */
@@ -78,6 +80,8 @@ data class ReviewSummary(
     val rating: Int,
     val isCheckedIn: Boolean,
     val price: String,
+    /** Quán được đánh giá (mở Chi tiết quán khi bấm). */
+    val placeId: String = "",
 )
 
 /** Thông tin tổng quan của vùng đang xem (ô tìm kiếm ở màn Khám phá). */

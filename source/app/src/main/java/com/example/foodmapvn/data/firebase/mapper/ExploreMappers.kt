@@ -1,5 +1,6 @@
 package com.example.foodmapvn.data.firebase.mapper
 
+import com.example.foodmapvn.data.model.FoodCategory
 import com.example.foodmapvn.data.model.LatLng
 import com.example.foodmapvn.data.model.PlaceSummary
 import com.google.firebase.firestore.DocumentSnapshot
@@ -30,5 +31,7 @@ fun DocumentSnapshot.toPlaceSummary(): PlaceSummary? {
         ratingAvg = double("ratingAvg") ?: 0.0,
         dishIds = strings("dishIds"),
         minPriceByDish = minPrice,
+        category = FoodCategory.from(str("category")),
+        hasReviews = int("reviewCount") > 0,
     )
 }

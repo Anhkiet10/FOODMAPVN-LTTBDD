@@ -7,7 +7,14 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.foodmapvn.data.local.VietnamProvinces
 import com.example.foodmapvn.data.model.LatLng
+import com.example.foodmapvn.data.model.PlaceSummary
 import com.example.foodmapvn.data.model.Province
+import com.example.foodmapvn.data.repository.DishRepository
+import com.example.foodmapvn.domain.ExploreFilter
+import com.example.foodmapvn.domain.GeoUtils
+import com.example.foodmapvn.domain.OpeningHours
+import kotlinx.coroutines.flow.catch
+import java.util.Calendar
 import com.example.foodmapvn.data.repository.AreaRepository
 import com.example.foodmapvn.data.repository.LocationRepository
 import com.example.foodmapvn.di.appContainer
@@ -18,6 +25,20 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.math.max
+
+/** Thẻ tóm tắt quán khi bấm ghim. */
+data class PlaceCard(
+    val place: PlaceSummary,
+    /** Khoảng cách từ vị trí của tôi, vd. "350 m"; null = chưa có vị trí. */
+    val distance: String?,
+    /** true/false = đang mở/đã đóng; null = chưa có giờ mở cửa. */
+    val isOpen: Boolean?,
+)
+
+/** Mức uy tín để tô màu ghim: cao (≥ 80), trung bình (60–79), thấp (< 60). */
+enum class TrustLevel(val min: Int) { HIGH(80), MEDIUM(60), LOW(0);
+    companion object { fun of(score: Int) = entries.first { score >= it.min } }
+}
 
 enum class LocationStatus { Idle, Locating, Found, Denied, Unavailable }
 
@@ -55,6 +76,10 @@ data class MapUiState(
     val bounds: MapBounds = MapBounds.forProvince(VietnamProvinces.DEFAULT),
     /** Tăng mỗi lần cần đưa camera về [center] (kể cả chọn lại đúng tỉnh đang xem). */
     val cameraVersion: Int = 0,
+    /** Quán của khu vực đang chọn (ghim trên bản đồ, UC-07). */
+    val places: List<PlaceSummary> = emptyList(),
+    /** Quán đang được chọn (bấm vào ghim) -> hiện thẻ tóm tắt. */
+    val selectedPlace: PlaceCard? = null,
 ) {
     companion object {
         /** Nửa cạnh khung khi xem một tỉnh/thành: 0,7° ≈ 78 km (tỉnh sau sáp nhập khá rộng). */
@@ -68,10 +93,11 @@ data class MapUiState(
  * Bản đồ của khu vực đang chọn (AreaRepository, dùng chung cả app):
  * - Đổi tỉnh ở bảng chọn → đổi khu vực cho CẢ APP, bản đồ chuyển sang tỉnh đó.
  * - "Vị trí của tôi" → suy ra tỉnh đang đứng, đặt làm khu vực, đưa bản đồ về vị trí.
- * Chưa hiển thị quán (Tuần 3).
+ * - Ghim quán của khu vực, màu theo uy tín, viền đỏ nếu bị cảnh báo giá; bấm ghim -> thẻ tóm tắt -> Chi tiết quán.
  */
 class MapViewModel(
     private val areaRepository: AreaRepository,
+    private val dishRepository: DishRepository,
     private val locationRepository: LocationRepository,
 ) : ViewModel() {
 
@@ -82,6 +108,16 @@ class MapViewModel(
     private var pendingFocus: LatLng? = null
 
     init {
+        // Quán của khu vực đang chọn (DishRepository tự đổi theo tỉnh)
+        viewModelScope.launch {
+            dishRepository.getPlaces().catch { emit(emptyList()) }.collect { places ->
+                _uiState.update { s ->
+                    // Quán đang chọn không còn trong vùng mới -> đóng thẻ
+                    val keep = s.selectedPlace?.takeIf { sel -> places.any { it.id == sel.place.id } }
+                    s.copy(places = places, selectedPlace = keep)
+                }
+            }
+        }
         viewModelScope.launch {
             areaRepository.selectedArea.collect { selected ->
                 val province = selected ?: VietnamProvinces.DEFAULT
@@ -147,6 +183,25 @@ class MapViewModel(
         }
     }
 
+    /** Bấm vào ghim quán ([placeId]) hoặc vào chỗ trống trên bản đồ (null) để đóng thẻ. */
+    fun selectPlace(placeId: String?) {
+        val s = _uiState.value
+        val place = placeId?.let { id -> s.places.firstOrNull { it.id == id } }
+        _uiState.update {
+            it.copy(
+                selectedPlace = place?.let { p ->
+                    PlaceCard(
+                        place = p,
+                        distance = ExploreFilter.distanceMeters(p, s.myLocation)?.let(GeoUtils::formatDistance),
+                        isOpen = OpeningHours.isOpen(p.openTime, p.closeTime, nowMinutes()),
+                    )
+                }
+            )
+        }
+    }
+
+    private fun nowMinutes(): Int = Calendar.getInstance().let { it.get(Calendar.HOUR_OF_DAY) * 60 + it.get(Calendar.MINUTE) }
+
     fun onPermissionDenied() {
         _uiState.update { it.copy(status = LocationStatus.Denied) }
     }
@@ -155,7 +210,7 @@ class MapViewModel(
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val container = appContainer()
-                MapViewModel(container.areaRepository, container.locationRepository)
+                MapViewModel(container.areaRepository, container.dishRepository, container.locationRepository)
             }
         }
     }

@@ -1,0 +1,10 @@
+<!-- Tự vẽ cho Food Map VN: đĩa bánh truyền thống (bánh bèo, nậm, lọc…) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <!-- đĩa -->
+    <path android:fillColor="#FF000000"
+        android:pathData="M1.5,14h21c0,3 -4.7,5.5 -10.5,5.5s-10.5,-2.5 -10.5,-5.5z"/>
+    <!-- 3 chén bánh, chấm nhân tôm ở giữa (khoét lỗ) -->
+    <path android:fillColor="#FF000000" android:fillType="evenOdd"
+        android:pathData="M6.6,7.1000000000000005a3.3,3.3 0,1 1,0 6.6a3.3,3.3 0,1 1,0 -6.6zM6.6,9.3a1.1,1.1 0,1 1,0 2.2a1.1,1.1 0,1 1,0 -2.2zM12,5.500000000000001a3.3,3.3 0,1 1,0 6.6a3.3,3.3 0,1 1,0 -6.6zM12,7.700000000000001a1.1,1.1 0,1 1,0 2.2a1.1,1.1 0,1 1,0 -2.2zM17.4,7.1000000000000005a3.3,3.3 0,1 1,0 6.6a3.3,3.3 0,1 1,0 -6.6zM17.4,9.3a1.1,1.1 0,1 1,0 2.2a1.1,1.1 0,1 1,0 -2.2z"/>
+</vector>

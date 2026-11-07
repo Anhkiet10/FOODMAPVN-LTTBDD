@@ -23,6 +23,9 @@ object Routes {
     const val REGION_SELECT = "region_select"
     const val SEARCH = "search"
     const val PROFILE_EDIT = "profile_edit"
+    const val MY_REVIEWS = "my_reviews"     // "Xem tất cả" đánh giá ở Hồ sơ
+    const val SETTINGS = "settings"         // nút bánh răng ở Hồ sơ
+    const val BUSINESS_REGISTER = "business_register" // Đăng ký doanh nghiệp (chủ quán), cần trước khi đề xuất quán
 
     // ===== Người 2 =====
     const val ARG_DISH_ID = "dishId"

@@ -42,6 +42,11 @@ service cloud.firestore {
     function optList(d, k) { return !(k in d) || d[k] == null || d[k] is list; }
     // ≈ CHECK (cot IN (...))
     function oneOf(d, k, values) { return k in d && d[k] in values; }
+    // Loại món (icon trên bản đồ): được thiếu (app coi là 'other'), nếu có phải thuộc 9 giá trị
+    function optCategory(d) {
+      return !('category' in d) || d.category in ['noodle_soup', 'rice', 'banh_mi', 'traditional_cake',
+        'hotpot_grill', 'seafood', 'dessert', 'drink', 'other'];
+    }
 
     // ---------- Khóa ngoại ----------
     function regionExists(id) { return existsAfter(/databases/$(database)/documents/regions/$(id)); }
@@ -63,7 +68,7 @@ service cloud.firestore {
         && (!('art' in d) || d.art in ['BUN_BO', 'CHE', 'COM_HEN'])
         && optStr(d, 'description') && optStr(d, 'bestTime') && optStr(d, 'imageUrl') && optStr(d, 'nearestHint')
         && optList(d, 'tips') && optList(d, 'photos')
-        && optInt(d, 'priceP25') && optInt(d, 'priceP75');
+        && optInt(d, 'priceP25') && optInt(d, 'priceP75') && optCategory(d);
     }
 
     function isValidPlace(d) {
@@ -75,7 +80,7 @@ service cloud.firestore {
         && reqInt(d, 'reviewCount') && reqInt(d, 'checkInCount')
         && reqList(d, 'dishIds') && reqTime(d, 'createdAt')
         && optStr(d, 'openTime') && optStr(d, 'closeTime') && optStr(d, 'suggestedBy')
-        && optNum(d, 'ratingAvg') && optList(d, 'menu') && optList(d, 'photos');
+        && optNum(d, 'ratingAvg') && optList(d, 'menu') && optList(d, 'photos') && optCategory(d);
     }
 
     function isValidReview(d) {
@@ -138,7 +143,21 @@ service cloud.firestore {
         && (d.status != 'rejected' || reqStr(d, 'rejectReason'))
         && reqTime(d, 'createdAt') && optTime(d, 'reviewedAt')
         && optInt(d, 'price') && optStr(d, 'openHours') && optStr(d, 'photoUrl')
-        && optStr(d, 'rejectReason') && optStr(d, 'reviewedBy') && optStr(d, 'placeId');
+        && optStr(d, 'rejectReason') && optStr(d, 'reviewedBy') && optStr(d, 'placeId') && optCategory(d);
+    }
+
+    // Doanh nghiệp (chủ quán): businesses/{uid}. Chỉ doanh nghiệp đã duyệt mới được đề xuất quán.
+    function isValidBusiness(d, uid) {
+      return reqStr(d, 'ownerId') && d.ownerId == uid
+        && reqStr(d, 'name') && d.name.size() >= 2 && d.name.size() <= 100
+        && oneOf(d, 'type', ['household', 'company'])
+        && oneOf(d, 'status', ['pending', 'approved', 'rejected'])
+        && (d.status != 'rejected' || reqStr(d, 'rejectReason'))
+        && reqTime(d, 'createdAt') && optTime(d, 'updatedAt') && optTime(d, 'reviewedAt')
+        && optStr(d, 'rejectReason') && optStr(d, 'reviewedBy');
+    }
+    function isApprovedBusiness() {
+      return signedIn() && get(/databases/$(database)/documents/businesses/$(request.auth.uid)).data.status == 'approved';
     }
 
     function isValidReport(d) {
@@ -245,9 +264,26 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.uid == request.auth.uid;
     }
 
+    // Doanh nghiệp: chủ tài khoản gửi đăng ký (luôn "pending"); sửa/gửi lại khi chưa được duyệt;
+    // chỉ Admin đổi sang approved/rejected.
+    match /businesses/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid)
+        && request.resource.data.status == 'pending'
+        && isValidBusiness(request.resource.data, uid);
+      allow update: if isValidBusiness(request.resource.data, uid) && (
+        isAdmin()
+        || (isOwner(uid)
+            && resource.data.status in ['pending', 'rejected']
+            && request.resource.data.status == 'pending'
+            && onlyChanges(['name', 'type', 'status', 'rejectReason', 'updatedAt'])));
+      allow delete: if isAdmin();
+    }
+
     match /suggestions/{id} {
       allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
-      allow create: if signedIn()
+      // UC-14: chỉ tài khoản doanh nghiệp đã được Admin duyệt mới tạo được đề xuất
+      allow create: if isApprovedBusiness()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.status == 'pending'
         && isValidSuggestion(request.resource.data)

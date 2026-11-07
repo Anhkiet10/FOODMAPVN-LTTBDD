@@ -14,6 +14,7 @@ object FirestorePaths {
     const val BADGES = "badges"            // users/{uid}/badges/{regionId}
     const val NOTIFICATIONS = "notifications"
     const val SUGGESTIONS = "suggestions"
+    const val BUSINESSES = "businesses"    // businesses/{uid}: doanh nghiệp (chủ quán) của tài khoản
     const val REPORTS = "reports"
     const val CONFIG = "config"
 }

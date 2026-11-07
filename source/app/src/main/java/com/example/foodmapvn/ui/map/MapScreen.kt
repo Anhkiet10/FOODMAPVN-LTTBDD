@@ -61,6 +61,7 @@ private const val MAX_ZOOM = 19.0
 /** Nối MapViewModel với MapScreen. Bản đồ mở theo khu vực đang chọn của cả app. */
 @Composable
 fun MapRoute(
+    onPlaceDetail: (placeId: String) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: MapViewModel = viewModel(factory = MapViewModel.Factory),
 ) {
@@ -83,13 +84,15 @@ fun MapRoute(
             else permissionLauncher.launch(LOCATION_PERMISSIONS)
         },
         onProvinceSelected = viewModel::selectProvince,
+        onPinClick = viewModel::selectPlace,
+        onPlaceDetail = onPlaceDetail,
         modifier = modifier,
     )
 }
 
 /**
  * Bản đồ vector OpenFreeMap (MapLibre) theo khu vực: quanh vị trí hiện tại,
- * hoặc tỉnh/thành chọn trên thanh tìm kiếm. Chưa hiển thị quán.
+ * hoặc tỉnh/thành chọn trên thanh tìm kiếm; ghim quán của khu vực (bấm ghim -> thẻ -> Chi tiết quán).
  */
 @Composable
 fun MapScreen(
@@ -97,6 +100,8 @@ fun MapScreen(
     modifier: Modifier = Modifier,
     onMyLocationClick: () -> Unit = {},
     onProvinceSelected: (Province) -> Unit = {},
+    onPinClick: (placeId: String?) -> Unit = {},
+    onPlaceDetail: (placeId: String) -> Unit = {},
 ) {
     var showPicker by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -133,7 +138,13 @@ fun MapScreen(
         mapView.getMapAsync { m ->
             m.setMinZoomPreference(MIN_ZOOM)
             m.setMaxZoomPreference(MAX_ZOOM)
+            // Bấm vào ghim -> chọn quán; bấm chỗ trống -> đóng thẻ
+            m.addOnMapClickListener { point ->
+                onPinClick(PlaceLayers.placeIdAt(m, point))
+                true
+            }
             m.setStyle(Style.Builder().fromUri(MapStyles.DEFAULT)) { s ->
+                PlaceLayers.addTo(s, context) // ghim quán nằm dưới chấm "vị trí của tôi"
                 s.addSource(GeoJsonSource(MY_LOCATION_SOURCE))
                 s.addLayer(
                     CircleLayer("my-location-halo", MY_LOCATION_SOURCE).withProperties(
@@ -163,6 +174,19 @@ fun MapScreen(
         )
     }
 
+    // Ghim quán của khu vực + quán đang chọn
+    LaunchedEffect(style, state.places) {
+        style?.let { PlaceLayers.setPlaces(it, state.places) }
+    }
+    LaunchedEffect(style, state.selectedPlace) {
+        val s = style ?: return@LaunchedEffect
+        val selected = state.selectedPlace?.place
+        PlaceLayers.setSelected(s, selected)
+        selected?.let { p ->
+            map?.animateCamera(CameraUpdateFactory.newLatLng(MapLatLng(p.location.latitude, p.location.longitude)))
+        }
+    }
+
     // Cập nhật chấm vị trí của tôi
     LaunchedEffect(style, state.myLocation) {
         val me = state.myLocation ?: return@LaunchedEffect
@@ -182,6 +206,14 @@ fun MapScreen(
                 .fillMaxWidth()
                 .padding(12.dp),
         )
+
+        if (state.places.isNotEmpty() && state.selectedPlace == null) {
+            PinLegend(
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(12.dp)
+            )
+        }
 
         // Nút phóng to / thu nhỏ (tiện khi dùng máy ảo) + nút vị trí của tôi
         Column(
@@ -210,6 +242,18 @@ fun MapScreen(
                 Icon(painterResource(R.drawable.ic_my_location), contentDescription = "Vị trí của tôi")
             }
         }
+
+        state.selectedPlace?.let { card ->
+            PlaceInfoCard(
+                card = card,
+                onDetailClick = { onPlaceDetail(card.place.id) },
+                onClose = { onPinClick(null) },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(12.dp),
+            )
+        }
     }
 
     if (showPicker) {
@@ -236,5 +280,6 @@ private fun areaSubtitle(state: MapUiState, loadFailed: Boolean): String = when 
     state.status == LocationStatus.Locating -> "Đang xác định vị trí của bạn…"
     state.status == LocationStatus.Denied -> "Chưa có quyền vị trí · chạm để chọn tỉnh/thành khác"
     state.status == LocationStatus.Unavailable -> "Không lấy được vị trí · chạm để chọn tỉnh/thành khác"
-    else -> "Khu vực đang xem · chạm để chọn tỉnh/thành khác"
+    state.places.isNotEmpty() -> "${state.places.size} quán · chạm để chọn tỉnh/thành khác"
+    else -> "Chưa có quán ở khu vực này · chạm để chọn tỉnh/thành khác"
 }

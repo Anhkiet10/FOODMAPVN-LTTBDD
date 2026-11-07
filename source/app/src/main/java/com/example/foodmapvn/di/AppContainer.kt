@@ -35,6 +35,9 @@ import com.example.foodmapvn.domain.TrustScoreCalculator
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.example.foodmapvn.data.repository.SuggestionRepository // 3 thêm nhat
+import com.example.foodmapvn.data.fake.FakeSuggestionRepository
+import com.example.foodmapvn.data.firebase.FirestoreSuggestionRepository
 
 import com.example.foodmapvn.data.fake.FakePlaceRepository
 import com.example.foodmapvn.data.firebase.FirestorePlaceRepository
@@ -87,7 +90,8 @@ class AppContainer(context: Context) {
     val placeRepository: PlaceRepository
 
     // ===== Người 3: đề xuất, báo cáo, thông báo, admin =====
-    // (thêm SuggestionRepository, ReportRepository, NotificationRepository, AdminRepository… ở đây)
+   // Nhật - Tuần 1: Đề xuất quán (UC-14)
+    val suggestionRepository: SuggestionRepository
 
     /** Nạp dữ liệu mẫu (chỉ bản debug, chỉ khi đã nối Firebase); null nếu không dùng được. */
     val seeder: FirestoreSeeder?
@@ -115,7 +119,8 @@ class AppContainer(context: Context) {
             savedRepository = FirestoreSavedRepository(db, auth)
             dishDetailRepository = FirestoreDishDetailRepository(db)
             placeRepository = FirestorePlaceRepository(db, auth, checkInValidator, trustScoreCalculator)
-            // Người 3
+            // Người 3 – Nhật
+            suggestionRepository = FirestoreSuggestionRepository(db, auth)
         } else {
             Log.i("FoodMap", "Chưa có google-services.json: đang dùng dữ liệu giả")
             val fake = FakeRepositories(areaRepository)
@@ -129,7 +134,8 @@ class AppContainer(context: Context) {
             savedRepository = fake.savedRepository
             dishDetailRepository = fake.dishDetailRepository
             placeRepository = FakePlaceRepository(checkInValidator, trustScoreCalculator)
-            // Người 3
+            // Người 3 - Nhật
+            suggestionRepository = FakeSuggestionRepository()
         }
     }
 }

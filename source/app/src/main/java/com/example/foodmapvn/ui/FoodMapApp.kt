@@ -240,7 +240,15 @@ fun FoodMapApp() {
                 }
 
                 // ===== Người 3: đề xuất, báo cáo, thông báo, admin =====
-                // (thêm: Routes.SUGGESTION_NEW, Routes.SUGGESTION_MINE, Routes.REPORT, Routes.NOTIFICATIONS, Routes.ADMIN)
+                // Nhật - Tuần 1: Đề xuất quán mới
+                composable(Routes.SUGGESTION_NEW) {
+                    com.example.foodmapvn.ui.suggestion.SuggestionNewRoute(
+                        onBack = { navController.popBackStack() },
+                        onFinished = { navController.popBackStack() },
+                    )
+                }
+                // thêm ( Routes.SUGGESTION_MINE, Routes.REPORT, Routes.NOTIFICATIONS)
+
             }
             }
         }

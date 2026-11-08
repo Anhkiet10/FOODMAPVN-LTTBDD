@@ -3,7 +3,21 @@ package com.example.foodmapvn.ui.region
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.sp
+import com.example.foodmapvn.ui.theme.BrickRed
+import com.example.foodmapvn.ui.theme.Ink
+import com.example.foodmapvn.ui.theme.SandDark
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -43,6 +57,7 @@ private val LOCATION_PERMISSIONS = arrayOf(
 @Composable
 fun RegionSelectRoute(
     onDone: () -> Unit,
+    askLocationOnStart: Boolean = true,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: RegionSelectViewModel = viewModel(factory = RegionSelectViewModel.Factory),
@@ -58,9 +73,9 @@ fun RegionSelectRoute(
         else permissionLauncher.launch(LOCATION_PERMISSIONS)
     }
 
-    // Lần đầu vào app: bắt buộc hỏi quyền vị trí
+    // Lần đầu vào app: hỏi quyền vị trí (trừ khi ở màn Giới thiệu người dùng bấm "Để sau")
     LaunchedEffect(Unit) {
-        if (state.isOnboarding) requestLocation()
+        if (state.isOnboarding && askLocationOnStart) requestLocation()
     }
     LaunchedEffect(state.finished) {
         if (state.finished) onDone()
@@ -89,27 +104,31 @@ fun RegionSelectScreen(
             .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 4.dp, end = 16.dp, top = 8.dp)) {
-            if (!state.isOnboarding) {
-                IconButton(onClick = onBack) {
-                    Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Quay lại")
-                }
-            } else {
-                Spacer(Modifier.width(12.dp))
-            }
+        // Figma "Chọn vùng": tiêu đề lớn + nút đóng tròn (chỉ khi mở lại từ Khám phá/Bản đồ)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
+        ) {
             Text(
-                if (state.isOnboarding) "Bạn đang ở đâu?" else "Chọn khu vực",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
+                "Bạn muốn khám phá ở đâu?",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = Ink,
+                modifier = Modifier.weight(1f),
             )
+            if (!state.isOnboarding) {
+                Box(
+                    Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(SandDark)
+                        .clickable(onClick = onBack),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(painterResource(R.drawable.ic_close), contentDescription = "Đóng", tint = Ink, modifier = Modifier.size(22.dp))
+                }
+            }
         }
-        Text(
-            if (state.isOnboarding) "Food Map VN cần vị trí để gợi ý đặc sản và quán ngon ở tỉnh/thành bạn đang đứng."
-            else "Khu vực này dùng cho Khám phá, Bản đồ và Tìm kiếm.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        )
 
         StatusBox(state.status)
 
@@ -117,8 +136,29 @@ fun RegionSelectScreen(
             provinces = state.provinces,
             selectedId = state.selectedId,
             onSelect = onSelect,
-            myLocationSubtitle = "Tự nhận tỉnh/thành theo vị trí hiện tại",
+            myLocationSubtitle = "Tự nhận vùng bạn đang đứng",
             onMyLocation = onUseMyLocation,
+            summaries = state.regionSummaries,
+            showFeatured = true,
+            footer = {
+                // Figma có link "Đề xuất vùng mới" – app hiện đã có đủ 34 tỉnh nên chỉ báo nhẹ
+                val context = LocalContext.current
+                Text(
+                    buildAnnotatedString {
+                        append("Chưa có vùng bạn cần? ")
+                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("Đề xuất vùng mới") }
+                    },
+                    color = BrickRed,
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            Toast.makeText(context, "Tính năng đề xuất vùng đang được phát triển", Toast.LENGTH_SHORT).show()
+                        }
+                        .padding(16.dp),
+                )
+            },
             modifier = Modifier.weight(1f),
         )
     }

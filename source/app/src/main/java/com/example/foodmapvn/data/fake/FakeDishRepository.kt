@@ -10,6 +10,7 @@ import com.example.foodmapvn.data.model.RegionSummary
 import com.example.foodmapvn.data.repository.AreaRepository
 import com.example.foodmapvn.data.repository.DishRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 /** Dữ liệu giả chỉ có Huế; tỉnh khác trả về rỗng (vẫn hiện tên tỉnh). */
@@ -27,6 +28,9 @@ class FakeDishRepository(private val areaRepository: AreaRepository) : DishRepos
     override fun getPlacePins(): Flow<List<PlacePin>> = areaId.map { if (it == "hue") FakeData.placePins else emptyList() }
 
     override fun getPlaces(): Flow<List<PlaceSummary>> = areaId.map { if (it == "hue") FAKE_PLACES else emptyList() }
+
+    override fun getAllRegionSummaries(): Flow<Map<String, RegionSummary>> =
+        flowOf(mapOf("hue" to FakeData.regionSummary))
 
     private companion object {
         val FAKE_PLACES = listOf(

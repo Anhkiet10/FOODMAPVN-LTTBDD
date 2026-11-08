@@ -1,5 +1,7 @@
 package com.example.foodmapvn.ui.explore
 
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -62,6 +64,8 @@ fun ExploreRoute(
     onSearchClick: () -> Unit,
     onDishClick: (Dish) -> Unit,
     modifier: Modifier = Modifier,
+    /** "Xem quán": mở Chi tiết quán của quán tốt nhất bán món đó. */
+    onPlaceClick: (placeId: String) -> Unit = {},
     viewModel: ExploreViewModel = viewModel(factory = ExploreViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -73,6 +77,8 @@ fun ExploreRoute(
         state = state,
         onSearchClick = onSearchClick,
         onDishClick = onDishClick,
+        // Chưa có quán nào bán món -> mở Chi tiết đặc sản như cũ
+        onViewPlaces = { dish -> viewModel.topPlaceFor(dish.id)?.let(onPlaceClick) ?: onDishClick(dish) },
         onOpenFilterSheet = { showFilterSheet = true },
         onFilterSelected = viewModel::onFilterSelected,
         onRegionClick = onRegionClick,
@@ -84,6 +90,7 @@ fun ExploreRoute(
         FilterSheet(
             initial = state.advancedFilters,
             hasLocation = state.hasLocation,
+            countPlaces = viewModel::countPlaces,
             onApply = {
                 viewModel.onAdvancedFiltersChange(it)
                 showFilterSheet = false
@@ -103,6 +110,7 @@ fun ExploreScreen(
     onOpenFilterSheet: () -> Unit = {},
     onFilterSelected: (String) -> Unit = {},
     onDishClick: (Dish) -> Unit = {},
+    onViewPlaces: (Dish) -> Unit = onDishClick,
 ) {
     LazyColumn(
         modifier = modifier
@@ -152,12 +160,18 @@ fun ExploreScreen(
             DishCard(
                 dish = dish,
                 onClick = { onDishClick(dish) },
+                onViewPlaces = { onViewPlaces(dish) },
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
     }
 }
 
+/**
+ * Thanh trên cùng chia đôi:
+ * - Trái: ô "Tìm món ăn…" – bấm là mở màn Tìm kiếm (bàn phím bật sẵn).
+ * - Phải: khu vực đang chọn + số đặc sản/quán – bấm để đổi tỉnh/thành (màn Chọn vùng).
+ */
 @Composable
 private fun SearchHeader(
     state: ExploreUiState,
@@ -169,48 +183,75 @@ private fun SearchHeader(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(SearchBarBg)
-            .padding(start = 4.dp, top = 6.dp, bottom = 6.dp, end = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .height(IntrinsicSize.Min),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        // Kính lúp: mở Tìm kiếm (Tuần 2)
-        IconButton(onClick = onSearchClick) {
+        // Bên trái: tìm món
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .clip(RoundedCornerShape(14.dp))
+                .background(SearchBarBg)
+                .clickable(onClick = onSearchClick)
+                .padding(horizontal = 12.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Icon(
                 painter = painterResource(R.drawable.ic_search),
-                contentDescription = "Tìm kiếm",
-                modifier = Modifier.size(24.dp),
+                contentDescription = "Tìm kiếm món ăn",
+                modifier = Modifier.size(22.dp),
             )
-        }
-        // Tên khu vực: bấm để đổi tỉnh/thành (màn Chọn vùng)
-        Column(
-            Modifier
-                .weight(1f)
-                .clip(RoundedCornerShape(8.dp))
-                .clickable(onClick = onRegionClick)
-                .padding(vertical = 2.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(state.regionName, style = MaterialTheme.typography.titleMedium)
-                Icon(
-                    painter = painterResource(R.drawable.ic_expand_more),
-                    contentDescription = "Đổi khu vực",
-                    modifier = Modifier.size(20.dp),
-                )
-            }
+            Spacer(Modifier.width(8.dp))
             Text(
-                text = state.subtitle,
-                style = MaterialTheme.typography.bodySmall,
+                "Tìm món ăn…",
+                style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        IconButton(onClick = onLocateClick) {
+        // Bên phải: vị trí / khu vực
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .clip(RoundedCornerShape(14.dp))
+                .background(SearchBarBg)
+                .clickable(onClick = onLocateClick)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Icon(
                 painter = painterResource(R.drawable.ic_my_location),
-                contentDescription = "Vị trí của tôi",
+                contentDescription = "Đổi khu vực",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp),
             )
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        state.regionName,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    Icon(
+                        painter = painterResource(R.drawable.ic_expand_more),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+                Text(
+                    text = state.subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
@@ -256,7 +297,7 @@ private fun FilterChipItem(label: String, selected: Boolean, onClick: () -> Unit
             .background(background)
             .then(if (selected) Modifier else Modifier.border(1.dp, colors.outline, shape))
             .clickable(onClick = onClick)
-            .padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+            .padding(start = 14.dp, end = 10.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = content)
@@ -271,12 +312,12 @@ private fun FilterChipItem(label: String, selected: Boolean, onClick: () -> Unit
 }
 
 @Composable
-private fun DishCard(dish: Dish, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun DishCard(dish: Dish, onClick: () -> Unit, onViewPlaces: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth()) {
         Box(
             Modifier
                 .fillMaxWidth()
-                .height(128.dp)
+                .height(150.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .clickable(onClick = onClick)
         ) {
@@ -315,7 +356,7 @@ private fun DishCard(dish: Dish, onClick: () -> Unit, modifier: Modifier = Modif
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = buildAnnotatedString {
-                    withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = 20.sp)) {
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = 22.sp)) {
                         append(dish.priceRange)
                     }
                     withStyle(
@@ -327,7 +368,7 @@ private fun DishCard(dish: Dish, onClick: () -> Unit, modifier: Modifier = Modif
                 modifier = Modifier.weight(1f),
             )
             Button(
-                onClick = onClick,
+                onClick = onViewPlaces,
                 shape = RoundedCornerShape(8.dp),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
                 modifier = Modifier.height(36.dp),

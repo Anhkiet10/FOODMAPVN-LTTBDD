@@ -27,6 +27,10 @@ data class DishDetail(
 enum class PlaceSort(val label: String) {
     TRUST("Uy tín cao"),
     DISTANCE("Gần nhất"),
+    /** Figma: giá thấp nhất trước (quán chưa có giá xếp sau). */
+    PRICE("Giá tốt"),
+    /** Figma: quán đang mở trước. */
+    OPEN_NOW("Đang mở"),
 }
 
 /** Một quán bán món, đã tính sẵn cho màn Chi tiết đặc sản. */

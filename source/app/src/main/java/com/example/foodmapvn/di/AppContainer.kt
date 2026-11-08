@@ -92,6 +92,8 @@ class AppContainer(context: Context) {
     // ===== Người 3: đề xuất, báo cáo, thông báo, admin =====
    // Nhật - Tuần 1: Đề xuất quán (UC-14)
     val suggestionRepository: SuggestionRepository
+    /** Báo cáo vi phạm (đánh giá / quán) – UC-15. */
+    val reportRepository: com.example.foodmapvn.data.repository.ReportRepository
 
     /** Nạp dữ liệu mẫu (chỉ bản debug, chỉ khi đã nối Firebase); null nếu không dùng được. */
     val seeder: FirestoreSeeder?
@@ -121,6 +123,7 @@ class AppContainer(context: Context) {
             placeRepository = FirestorePlaceRepository(db, auth, checkInValidator, trustScoreCalculator)
             // Người 3 – Nhật
             suggestionRepository = FirestoreSuggestionRepository(db, auth)
+            reportRepository = com.example.foodmapvn.data.firebase.FirestoreReportRepository(db, auth)
         } else {
             Log.i("FoodMap", "Chưa có google-services.json: đang dùng dữ liệu giả")
             val fake = FakeRepositories(areaRepository)
@@ -136,6 +139,7 @@ class AppContainer(context: Context) {
             placeRepository = FakePlaceRepository(checkInValidator, trustScoreCalculator)
             // Người 3 - Nhật
             suggestionRepository = FakeSuggestionRepository()
+            reportRepository = com.example.foodmapvn.data.fake.FakeReportRepository()
         }
     }
 }

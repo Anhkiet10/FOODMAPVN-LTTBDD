@@ -8,6 +8,8 @@ import com.example.foodmapvn.data.model.PlaceSummary
 data class ExploreFilters(
     /** Giá tối đa một phần (đồng). */
     val maxPrice: Long? = null,
+    /** Giá tối thiểu một phần (đồng) — thanh kéo "Khoảng giá" 2 đầu trong Figma. */
+    val minPrice: Long? = null,
     /** Khoảng cách tối đa (km) — chỉ có tác dụng khi biết vị trí. */
     val maxDistanceKm: Double? = null,
     /** Điểm uy tín tối thiểu (0–100). */
@@ -16,7 +18,7 @@ data class ExploreFilters(
     val hidePriceWarning: Boolean = false,
 ) {
     val activeCount: Int
-        get() = listOf(maxPrice != null, maxDistanceKm != null, minTrust != null, openNow, hidePriceWarning).count { it }
+        get() = listOf(maxPrice != null || minPrice != null, maxDistanceKm != null, minTrust != null, openNow, hidePriceWarning).count { it }
 
     val isEmpty: Boolean get() = activeCount == 0
 }
@@ -67,6 +69,10 @@ object ExploreFilter {
         filters.maxPrice?.let { maxPrice ->
             val price = (dishId?.let { place.minPriceByDish[it] } ?: place.minPriceByDish.values.minOrNull()) ?: fallbackPrice
             if (price == null || price > maxPrice) return false
+        }
+        filters.minPrice?.let { minPrice ->
+            val price = (dishId?.let { place.minPriceByDish[it] } ?: place.minPriceByDish.values.minOrNull()) ?: fallbackPrice
+            if (price == null || price < minPrice) return false
         }
         return true
     }

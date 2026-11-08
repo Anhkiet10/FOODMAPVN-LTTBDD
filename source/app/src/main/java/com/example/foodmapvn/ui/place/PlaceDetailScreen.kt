@@ -47,6 +47,13 @@ import com.example.foodmapvn.R
 import com.example.foodmapvn.data.model.FoodArtType
 import com.example.foodmapvn.data.model.PlaceDetail
 import com.example.foodmapvn.data.model.ReviewItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import com.example.foodmapvn.ui.auth.LocalLoginGate
+import com.example.foodmapvn.domain.formatVnd
 import com.example.foodmapvn.ui.components.FoodImage
 import com.example.foodmapvn.ui.components.InfoTag
 import com.example.foodmapvn.ui.components.StarRating
@@ -64,20 +71,30 @@ fun PlaceDetailRoute(
     onAllReviewsClick: (String) -> Unit,
     onDirectionsClick: (PlaceDetail) -> Unit = {},
     modifier: Modifier = Modifier,
+    /** Bấm một món trong "Món của quán" -> Chi tiết đặc sản. */
+    onDishClick: (dishId: String) -> Unit = {},
     viewModel: PlaceDetailViewModel = viewModel(factory = PlaceDetailViewModel.Factory),
 ) {
     val place by viewModel.placeDetail.collectAsStateWithLifecycle()
     val reviews by viewModel.reviews.collectAsStateWithLifecycle()
+    val dishes by viewModel.dishes.collectAsStateWithLifecycle()
+    val message by viewModel.message.collectAsStateWithLifecycle()
+    val loginGate = LocalLoginGate.current
 
     PlaceDetailScreen(
         place = place,
         reviews = reviews,
         onBack = onBack,
-        onToggleSave = viewModel::toggleSavePlace,
+        // Lưu quán cần tài khoản: khách được đưa sang Đăng nhập
+        onToggleSave = { loginGate.requireLogin { viewModel.toggleSavePlace() } },
+        message = message,
+        onMessageShown = viewModel::onMessageShown,
         onCheckInClick = { onCheckInClick(place?.id ?: "") },
         onWriteReviewClick = { onWriteReviewClick(place?.id ?: "") },
         onAllReviewsClick = { onAllReviewsClick(place?.id ?: "") },
         onDirectionsClick = { place?.let(onDirectionsClick) },
+        dishes = dishes,
+        onDishClick = onDishClick,
         modifier = modifier,
     )
 }
@@ -94,8 +111,19 @@ fun PlaceDetailScreen(
     onAllReviewsClick: () -> Unit,
     onDirectionsClick: () -> Unit = {},
     modifier: Modifier = Modifier,
+    dishes: List<PlaceDish> = emptyList(),
+    onDishClick: (String) -> Unit = {},
+    message: String? = null,
+    onMessageShown: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val snackbar = remember { SnackbarHostState() }
+    LaunchedEffect(message) {
+        message?.let {
+            snackbar.showSnackbar(it)
+            onMessageShown()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -120,6 +148,7 @@ fun PlaceDetailScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
             )
         },
+        snackbarHost = { SnackbarHost(snackbar) },
         modifier = modifier,
     ) { innerPadding ->
         if (place == null) {
@@ -277,12 +306,40 @@ fun PlaceDetailScreen(
                     }
                 }
                 Spacer(Modifier.height(24.dp))
+            }
 
-                Text(
-                    "Đánh giá mới nhất (${reviews.size})",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
+            // Món đặc sản của quán: bấm để xem Chi tiết đặc sản
+            if (dishes.isNotEmpty()) {
+                item {
+                    Text("Món của quán", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(4.dp))
+                }
+                items(dishes, key = { "dish-" + it.dish.id }) { item ->
+                    PlaceDishRow(item, onClick = { onDishClick(item.dish.id) })
+                }
+                item { Spacer(Modifier.height(24.dp)) }
+            }
+
+            item {
+                // Bấm tiêu đề hoặc "Xem tất cả" -> trang Danh sách đánh giá (lọc, báo cáo đánh giá)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().clickable(onClick = onAllReviewsClick),
+                ) {
+                    Text(
+                        "Đánh giá (${reviews.size})",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text("Xem tất cả", color = BrickRed, fontWeight = FontWeight.Bold)
+                    Icon(
+                        painterResource(R.drawable.ic_chevron_right),
+                        contentDescription = null,
+                        tint = BrickRed,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
                 Spacer(Modifier.height(12.dp))
             }
 
@@ -296,7 +353,9 @@ fun PlaceDetailScreen(
                 }
             } else {
                 items(reviews.take(3), key = { it.id }) { review ->
-                    ReviewCard(review = review)
+                    Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onAllReviewsClick)) {
+                        ReviewCard(review = review)
+                    }
                     Spacer(Modifier.height(10.dp))
                 }
 
@@ -320,6 +379,38 @@ fun PlaceDetailScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun PlaceDishRow(item: PlaceDish, onClick: () -> Unit) {
+    Column(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+        Row(Modifier.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            FoodImage(
+                imageUrl = item.dish.imageUrl,
+                fallbackArt = item.dish.art,
+                modifier = Modifier.size(48.dp).clip(RoundedCornerShape(10.dp)),
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(item.dish.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                Text("Đặc sản · xem chi tiết", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text(
+                item.minPrice?.let { "${formatVnd(it)}đ" } ?: "Chưa có giá",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+                color = if (item.minPrice != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.width(4.dp))
+            Icon(
+                painterResource(R.drawable.ic_chevron_right),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
 
@@ -385,6 +476,20 @@ fun ReviewCard(review: ReviewItem) {
 
             if (!review.content.isNullOrBlank()) {
                 Text(review.content, style = MaterialTheme.typography.bodyMedium)
+            }
+            // Ảnh đính kèm của đánh giá
+            if (review.photos.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    review.photos.take(4).forEach { url ->
+                        coil3.compose.AsyncImage(
+                            model = url,
+                            contentDescription = "Ảnh đánh giá",
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            modifier = Modifier.size(64.dp).clip(RoundedCornerShape(8.dp)),
+                        )
+                    }
+                }
             }
         }
     }

@@ -186,6 +186,8 @@ class FirestorePlaceRepository(
             db.collection(FirestorePaths.PLACES).document(placeId)
                 .update("checkInCount", currentCheckIns)
                 .awaitTask()
+            // Check-in mới làm thay đổi điểm uy tín (thành phần check-in) và có thể làm quán "đã xác thực"
+            runCatching { recalculateTrust(placeId) }
 
             // Cập nhật stats của user an toàn
             userDoc(uid).set(
@@ -302,11 +304,49 @@ class FirestorePlaceRepository(
                 "reviewCount" to reviewsList.size,
             )
         ).awaitTask()
+        // Đánh giá mới làm thay đổi điểm uy tín (thành phần số sao)
+        runCatching { recalculateTrust(placeId) }
 
         // Cập nhật reviewCount của user an toàn
         userDoc(uid).set(
             mapOf("stats" to mapOf("reviewCount" to FieldValue.increment(1))),
             SetOptions.merge()
+        ).awaitTask()
+    }
+
+    /**
+     * Tính lại điểm uy tín (BR-08) và trạng thái "đã xác thực" (BR-05) của quán từ dữ liệu thật:
+     *   Uy tín = 100 × (0,5 × sao + 0,3 × check-in 90 ngày / 20 + 0,2 × giá hợp lý) − 5 × vi phạm
+     * Gọi sau mỗi lần check-in hợp lệ và mỗi lần gửi đánh giá.
+     */
+    private suspend fun recalculateTrust(placeId: String) {
+        val placeRef = db.collection(FirestorePaths.PLACES).document(placeId)
+        val place = placeRef.get().awaitTask()
+        if (!place.exists()) return
+
+        val reviews = db.collection(FirestorePaths.REVIEWS).whereEqualTo("placeId", placeId).get().awaitTask()
+            .documents
+            .filter { (it.getString("status") ?: "visible") == "visible" }
+            .map { ReviewInput(stars = it.getLong("stars")?.toInt() ?: 5, isLocal = it.getBoolean("isLocal") ?: false) }
+
+        val since = System.currentTimeMillis() - 90L * 24 * 60 * 60 * 1000
+        val checkIns = db.collection(FirestorePaths.CHECKINS).whereEqualTo("placeId", placeId).get().awaitTask()
+            .documents
+            .filter { it.getBoolean("valid") != false }
+        val recent = checkIns.count { (it.getTimestamp("createdAt")?.toDate()?.time ?: System.currentTimeMillis()) >= since }
+        val users = checkIns.mapNotNull { it.getString("userId") }.distinct().size
+
+        val score = trustScoreCalculator.calculate(
+            reviews = reviews,
+            validCheckIns90Days = recent,
+            hasPriceWarning = place.getBoolean("priceWarning") ?: false,
+            confirmedViolations = 0, // chưa có bước Admin xác nhận vi phạm
+        )
+        placeRef.update(
+            mapOf(
+                "trustScore" to score,
+                "isVerified" to trustScoreCalculator.isVerified(checkIns.size, users),
+            )
         ).awaitTask()
     }
 }

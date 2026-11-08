@@ -24,7 +24,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -91,7 +93,10 @@ class SearchViewModel(
             provinces = if (q.isBlank()) emptyList() else
                 VietnamProvinces.all.filter { p -> TextSearch.matches(q, p.name, *p.formerNames.toTypedArray()) },
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SearchUiState())
+    }
+        // Lọc hàng trăm quán chạy ở luồng nền, không làm giật ô nhập / bàn phím
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SearchUiState())
 
     init {
         // Có quyền vị trí thì dùng để tính khoảng cách tới quán

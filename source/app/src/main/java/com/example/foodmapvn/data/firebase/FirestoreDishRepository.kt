@@ -65,4 +65,8 @@ class FirestoreDishRepository(
             .asFlow()
             .map { snapshot -> snapshot.documents.mapNotNull { it.toPlaceSummary() } }
     }
+
+    override fun getAllRegionSummaries(): Flow<Map<String, RegionSummary>> =
+        db.collection(FirestorePaths.REGIONS).asFlow()
+            .map { snapshot -> snapshot.documents.associate { it.id to it.toRegionSummary() } }
 }

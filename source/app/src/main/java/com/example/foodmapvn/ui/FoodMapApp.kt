@@ -46,6 +46,7 @@ import com.example.foodmapvn.ui.search.SearchRoute
 import com.example.foodmapvn.ui.navigation.navigateIfReady
 import androidx.compose.ui.platform.LocalContext
 import com.example.foodmapvn.ui.splash.SplashRoute
+import com.example.foodmapvn.ui.onboarding.OnboardingScreen
 import com.example.foodmapvn.ui.theme.FoodmapvnTheme
 
 import com.example.foodmapvn.ui.checkin.CheckInRoute
@@ -96,20 +97,56 @@ fun FoodMapApp() {
                 navController.addOnDestinationChangedListener(listener)
                 onDispose { navController.removeOnDestinationChangedListener(listener) }
             }
+            // Luồng mở app lần đầu theo Figma: Splash -> Giới thiệu (+ hỏi quyền vị trí) -> Đăng nhập -> Chọn vùng -> app.
+            // Khác null = đang trong luồng này (giá trị = người dùng có cho phép vị trí ở màn Giới thiệu không).
+            val onboardingPrefs = remember { context.getSharedPreferences("onboarding", android.content.Context.MODE_PRIVATE) }
+            var startupAsk by rememberSaveable { mutableStateOf<Boolean?>(null) }
+            val startupNext: () -> String = {
+                if (container.areaRepository.selectedArea.value == null) Routes.regionSelect(startupAsk ?: true) else Routes.MAIN
+            }
+            // Xong màn Đăng nhập/Đăng ký (hoặc bấm "Dùng thử không cần tài khoản"):
+            // đang trong luồng mở app -> sang bước tiếp; mở từ trong app -> quay về màn trước
+            val finishAuth: () -> Unit = {
+                if (startupAsk != null) {
+                    val next = startupNext()
+                    startupAsk = null
+                    navController.navigate(next) { popUpTo(navController.graph.id) { inclusive = true } }
+                } else {
+                    navController.popBackStack(Routes.LOGIN, inclusive = true)
+                }
+            }
             CompositionLocalProvider(LocalLoginGate provides loginGate) {
             NavHost(navController = navController, startDestination = Routes.SPLASH) {
                 // ===== Người 1: khung chung, Khám phá, Bản đồ, Hồ sơ =====
                 composable(Routes.SPLASH) {
                     SplashRoute(onFinished = { next ->
-                        navController.navigate(next) { popUpTo(Routes.SPLASH) { inclusive = true } }
+                        // Chưa xem Giới thiệu (kể cả máy đã chọn khu vực từ bản cũ) -> hiện các bước như Figma
+                        val target = if (!onboardingPrefs.getBoolean("done", false)) Routes.ONBOARDING else next
+                        navController.navigate(target) { popUpTo(Routes.SPLASH) { inclusive = true } }
                     })
                 }
-                composable(Routes.REGION_SELECT) {
+                composable(Routes.ONBOARDING) {
+                    OnboardingScreen(onFinished = { ask ->
+                        onboardingPrefs.edit().putBoolean("done", true).apply()
+                        startupAsk = ask
+                        val next = if (currentUser == null) Routes.LOGIN else startupNext()
+                        if (next != Routes.LOGIN) startupAsk = null
+                        navController.navigate(next) { popUpTo(Routes.ONBOARDING) { inclusive = true } }
+                    })
+                }
+                composable(
+                    Routes.REGION_SELECT_PATTERN,
+                    arguments = listOf(navArgument(Routes.ARG_ASK_LOCATION) {
+                        type = NavType.BoolType
+                        defaultValue = true
+                    }),
+                ) { entry ->
                     RegionSelectRoute(
+                        askLocationOnStart = entry.arguments?.getBoolean(Routes.ARG_ASK_LOCATION) ?: true,
                         onDone = {
                             // Lần đầu (không có màn trước) -> vào app; mở từ Khám phá -> quay lại
                             if (navController.previousBackStackEntry == null) {
-                                navController.navigate(Routes.MAIN) { popUpTo(Routes.REGION_SELECT) { inclusive = true } }
+                                navController.navigate(Routes.MAIN) { popUpTo(Routes.REGION_SELECT_PATTERN) { inclusive = true } }
                             } else {
                                 navController.popBackStack()
                             }
@@ -125,6 +162,7 @@ fun FoodMapApp() {
                         onEditProfileClick = { navController.navigate(Routes.PROFILE_EDIT) },
                         onSettingsClick = { navController.navigate(Routes.SETTINGS) },
                         onMyReviewsClick = { navController.navigate(Routes.MY_REVIEWS) },
+                        onBadgesClick = { navController.navigate(Routes.BADGES) },
                         // 3 màn của Người 3: chưa có thì báo nhẹ, không crash
                         onNotificationsClick = { navController.navigateIfReady(Routes.NOTIFICATIONS, context, "Thông báo") },
                         onMySuggestionsClick = { navController.navigateIfReady(Routes.SUGGESTION_MINE, context, "Đề xuất của tôi") },
@@ -139,7 +177,7 @@ fun FoodMapApp() {
                 // Đăng nhập xong (mọi cách) -> đóng các màn đăng nhập, quay về màn trước khi mở Đăng nhập
                 composable(Routes.LOGIN) {
                     LoginRoute(
-                        onDone = { navController.popBackStack(Routes.LOGIN, inclusive = true) },
+                        onDone = finishAuth,
                         onPhoneClick = { navController.navigate(Routes.LOGIN_PHONE) },
                         onRegisterClick = { navController.navigate(Routes.REGISTER) },
                         onForgotPasswordClick = { navController.navigate(Routes.FORGOT_PASSWORD) },
@@ -147,7 +185,7 @@ fun FoodMapApp() {
                 }
                 composable(Routes.REGISTER) {
                     RegisterRoute(
-                        onDone = { navController.popBackStack(Routes.LOGIN, inclusive = true) },
+                        onDone = finishAuth,
                         onBackToLogin = { navController.popBackStack() },
                     )
                 }
@@ -156,7 +194,7 @@ fun FoodMapApp() {
                 }
                 composable(Routes.LOGIN_PHONE) {
                     PhoneLoginRoute(
-                        onDone = { navController.popBackStack(Routes.LOGIN, inclusive = true) },
+                        onDone = finishAuth,
                         onBack = { navController.popBackStack() },
                     )
                 }
@@ -171,6 +209,12 @@ fun FoodMapApp() {
                     EditProfileRoute(
                         onDone = { navController.popBackStack() },
                         onBack = { navController.popBackStack() },
+                    )
+                }
+                composable(Routes.BADGES) {
+                    com.example.foodmapvn.ui.profile.BadgesRoute(
+                        onBack = { navController.popBackStack() },
+                        onPlaceClick = { navController.navigate(Routes.place(it)) },
                     )
                 }
                 composable(Routes.MY_REVIEWS) {
@@ -196,17 +240,34 @@ fun FoodMapApp() {
                 // UC-08 Chi tiết đặc sản + UC-10 Lưu vào Món muốn ăn
                 composable(
                     route = Routes.DISH,
-                    arguments = listOf(navArgument(Routes.ARG_DISH_ID) { type = NavType.StringType }),
-                ) {
+                    arguments = listOf(
+                        navArgument(Routes.ARG_DISH_ID) { type = NavType.StringType },
+                        navArgument(Routes.ARG_FROM_PLACE_ID) {
+                            type = NavType.StringType
+                            nullable = true
+                            defaultValue = null
+                        },
+                    ),
+                ) { entry ->
                     DishDetailRoute(
                         onBack = { navController.popBackStack() },
                         onPlaceClick = { navController.navigate(Routes.place(it)) },
+                        fromPlaceId = entry.arguments?.getString(Routes.ARG_FROM_PLACE_ID),
+                        // "Xem quán trên bản đồ": sang tab Bản đồ và mở sẵn thẻ của quán đó
+                        onShowOnMap = { placeId ->
+                            if (placeId != null) container.navigationRouteManager.showPlaceOnMap(placeId)
+                            else container.navigationRouteManager.requestMapTab()
+                            navController.popBackStack(Routes.MAIN, inclusive = false)
+                        },
                     )
                 }
                 // UC-09 Chi tiết quán, danh sách đánh giá; UC-12 Check-in; UC-13 Viết đánh giá; chỉ đường
-                composable(Routes.PLACE) {
+                composable(Routes.PLACE) { entry ->
+                    val placeId = entry.arguments?.getString(Routes.ARG_PLACE_ID)
                     PlaceDetailRoute(
                         onBack = { navController.popBackStack() },
+                        // "Món của quán" -> Chi tiết đặc sản (nhớ quán đang xem để "Xem quán trên bản đồ" chọn đúng quán)
+                        onDishClick = { dishId -> navController.navigate(Routes.dish(dishId, placeId)) },
                         onCheckInClick = { placeId -> navController.navigate(Routes.checkin(placeId)) },
                         onWriteReviewClick = { placeId -> navController.navigate(Routes.review(placeId)) },
                         onAllReviewsClick = { placeId -> navController.navigate(Routes.placeReviews(placeId)) },
@@ -263,6 +324,7 @@ private fun MainTabs(
     onEditProfileClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onMyReviewsClick: () -> Unit,
+    onBadgesClick: () -> Unit,
     onNotificationsClick: () -> Unit,
     onMySuggestionsClick: () -> Unit,
     onAdminClick: () -> Unit,
@@ -300,6 +362,7 @@ private fun MainTabs(
                     onRegionClick = onRegionClick,
                     onSearchClick = onSearchClick,
                     onDishClick = onDishClick,
+                    onPlaceClick = onPlaceClick,
                 )
                 MainTab.MAP -> MapRoute(onPlaceDetail = onPlaceClick)
                 MainTab.SAVED -> SavedRoute(
@@ -312,6 +375,7 @@ private fun MainTabs(
                     onNotificationsClick = onNotificationsClick,
                     onSettingsClick = onSettingsClick,
                     onSeeAllReviewsClick = onMyReviewsClick,
+                    onBadgesClick = onBadgesClick,
                     onReviewPlaceClick = onPlaceClick,
                     // "Món muốn ăn" = danh sách món đã lưu -> chuyển sang tab Đã lưu
                     onWishlistClick = { currentTab = MainTab.SAVED },

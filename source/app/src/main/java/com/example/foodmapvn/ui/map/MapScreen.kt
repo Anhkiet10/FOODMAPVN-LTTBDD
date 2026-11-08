@@ -105,6 +105,7 @@ fun MapRoute(
         onPlaceDetail = onPlaceDetail,
         onTravelModeChange = viewModel::setTravelMode,
         onClearRoute = viewModel::clearActiveRoute,
+        onDirections = viewModel::startDirections,
         modifier = modifier,
     )
 }
@@ -123,6 +124,7 @@ fun MapScreen(
     onPlaceDetail: (placeId: String) -> Unit = {},
     onTravelModeChange: (String) -> Unit = {},
     onClearRoute: () -> Unit = {},
+    onDirections: (com.example.foodmapvn.data.model.PlaceSummary) -> Unit = {},
 ) {
     var showPicker by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -310,6 +312,7 @@ fun MapScreen(
             PlaceInfoCard(
                 card = card,
                 onDetailClick = { onPlaceDetail(card.place.id) },
+                onDirectionsClick = { onDirections(card.place) },
                 onClose = { onPinClick(null) },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)

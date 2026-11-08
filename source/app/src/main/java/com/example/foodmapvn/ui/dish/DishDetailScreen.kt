@@ -1,6 +1,20 @@
 package com.example.foodmapvn.ui.dish
 
+import android.content.Intent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.sp
+import com.example.foodmapvn.data.local.VietnamProvinces
+import com.example.foodmapvn.ui.theme.DividerColor
+import com.example.foodmapvn.ui.theme.FieldBorder
+import com.example.foodmapvn.ui.theme.Ink
+import com.example.foodmapvn.ui.theme.Sand
+import com.example.foodmapvn.ui.theme.SandDark
+import com.example.foodmapvn.ui.theme.SuccessGreenSoft
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -75,10 +89,15 @@ import com.example.foodmapvn.ui.theme.SuccessGreen
 fun DishDetailRoute(
     onBack: () -> Unit,
     onPlaceClick: (placeId: String) -> Unit,
+    /** placeId = quán cần chọn sẵn trên bản đồ (quán đang xem, hoặc quán đứng đầu danh sách). */
+    onShowOnMap: (placeId: String?) -> Unit = {},
+    /** Mở từ "Món của quán" ở Chi tiết quán -> quán đó. */
+    fromPlaceId: String? = null,
     viewModel: DishDetailViewModel = viewModel(factory = DishDetailViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val loginGate = LocalLoginGate.current
+    val context = LocalContext.current
     // Quay lại màn (vd. vừa cấp quyền vị trí) -> lấy lại vị trí
     LaunchedEffect(Unit) { viewModel.refreshLocation() }
 
@@ -90,6 +109,21 @@ fun DishDetailRoute(
         // Lưu món cần tài khoản: Khách được đưa sang Đăng nhập rồi quay lại đây
         onToggleSave = { loginGate.requireLogin { viewModel.toggleSave() } },
         onMessageShown = viewModel::onMessageShown,
+        onShowOnMap = { onShowOnMap(fromPlaceId ?: state.places.firstOrNull()?.place?.id) },
+        // "Xem quán": mở Chi tiết quán. Đến từ "Món của quán" -> quay về đúng quán đó (không mở chồng thêm màn)
+        onViewPlace = {
+            val target = fromPlaceId ?: state.places.firstOrNull()?.place?.id
+            when {
+                target == null -> Unit
+                target == fromPlaceId -> onBack()
+                else -> onPlaceClick(target)
+            }
+        },
+        onShare = { dish ->
+            val text = "${dish.name} – ${dish.priceRange}. Xem quán ngon trên Food Map VN"
+            val intent = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+            context.startActivity(Intent.createChooser(intent, "Chia sẻ món"))
+        },
     )
 }
 
@@ -101,6 +135,9 @@ fun DishDetailScreen(
     onSortChange: (PlaceSort) -> Unit,
     onToggleSave: () -> Unit,
     onMessageShown: () -> Unit,
+    onShowOnMap: () -> Unit = {},
+    onViewPlace: () -> Unit = {},
+    onShare: (DishDetail) -> Unit = {},
 ) {
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(state.message) {
@@ -111,9 +148,14 @@ fun DishDetailScreen(
     }
 
     Scaffold(
+        containerColor = Color.White,
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
-            if (state.dish != null) SaveBar(isSaved = state.isSaved, isSaving = state.isSaving, onClick = onToggleSave)
+            if (state.dish != null) MapBar(
+                hasPlace = state.places.isNotEmpty(),
+                onViewPlace = onViewPlace,
+                onShowOnMap = onShowOnMap,
+            )
         },
     ) { padding ->
         when {
@@ -124,12 +166,27 @@ fun DishDetailScreen(
                 places = state.places,
                 sort = state.sort,
                 hasLocation = state.hasLocation,
+                isSaved = state.isSaved,
+                isSaving = state.isSaving,
                 onBack = onBack,
                 onPlaceClick = onPlaceClick,
                 onSortChange = onSortChange,
+                onToggleSave = onToggleSave,
+                onShowOnMap = onShowOnMap,
+                onShare = { onShare(state.dish) },
                 contentPadding = padding,
             )
         }
+    }
+}
+
+/** "35.000–50.000đ" -> "35 – 50k" (chip "Giá phổ biến" trong Figma). */
+private fun shortPrice(range: String): String {
+    val numbers = Regex("[0-9][0-9.]*").findAll(range).map { it.value.replace(".", "").toLongOrNull() }.filterNotNull().toList()
+    return when (numbers.size) {
+        0 -> range
+        1 -> "${numbers[0] / 1000}k"
+        else -> "${numbers[0] / 1000} – ${numbers[1] / 1000}k"
     }
 }
 
@@ -139,203 +196,322 @@ private fun DishContent(
     places: List<DishPlace>,
     sort: PlaceSort,
     hasLocation: Boolean,
+    isSaved: Boolean,
+    isSaving: Boolean,
     onBack: () -> Unit,
     onPlaceClick: (String) -> Unit,
     onSortChange: (PlaceSort) -> Unit,
+    onToggleSave: () -> Unit,
+    onShowOnMap: () -> Unit,
+    onShare: () -> Unit,
     contentPadding: PaddingValues,
 ) {
+    val regionName = remember(dish.regionId) { VietnamProvinces.all.firstOrNull { it.id == dish.regionId }?.name.orEmpty() }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding() + 16.dp),
     ) {
-        // Ảnh + nút quay lại
+        // Ảnh lớn + nút tròn trắng: quay lại / chia sẻ / lưu (Figma)
         item {
             Box {
                 FoodImage(
                     imageUrl = dish.imageUrl,
                     fallbackArt = dish.art,
-                    modifier = Modifier.fillMaxWidth().height(240.dp),
+                    modifier = Modifier.fillMaxWidth().height(250.dp),
                 )
-                IconButton(
-                    onClick = onBack,
-                    colors = IconButtonDefaults.iconButtonColors(containerColor = Color.White.copy(alpha = 0.9f)),
-                    modifier = Modifier.statusBarsPadding().padding(8.dp),
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Quay lại")
+                    CircleButton(R.drawable.ic_arrow_back, "Quay lại", onClick = onBack)
+                    Spacer(Modifier.weight(1f))
+                    CircleButton(R.drawable.ic_share, "Chia sẻ", onClick = onShare)
+                    Spacer(Modifier.width(10.dp))
+                    // Lưu vào "Món muốn ăn" (UC-10): nút bookmark, đổ màu khi đã lưu
+                    CircleButton(
+                        if (isSaved) R.drawable.ic_bookmark else R.drawable.ic_bookmark_border,
+                        if (isSaved) "Bỏ lưu" else "Lưu vào Món muốn ăn",
+                        tint = if (isSaved) BrickRed else Ink,
+                        enabled = !isSaving,
+                        onClick = onToggleSave,
+                    )
                 }
             }
         }
-        // Tên, loại, giá
+        // Tấm trắng bo góc đè lên ảnh
         item {
-            Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                Modifier
+                    .offset(y = (-24).dp)
+                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                    .background(Color.White)
+                    .padding(start = 16.dp, end = 16.dp, top = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(dish.name, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Ink)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(painterResource(dish.category.iconRes), contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                    Icon(painterResource(R.drawable.ic_place), contentDescription = null, tint = BrickRed, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text(dish.category.label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    Text(
+                        listOfNotNull(
+                            regionName.takeIf { it.isNotEmpty() }?.let { "Đặc sản $it" },
+                            dish.bestTime ?: dish.category.label,
+                        ).joinToString(" · "),
+                        fontSize = 15.sp,
+                        color = InkSecondary,
+                    )
                 }
-                Text(dish.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(dish.priceRange, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    if (dish.priceRange != "Chưa có giá") {
-                        Text(" / ${dish.priceUnit}", style = MaterialTheme.typography.bodyMedium, color = InkSecondary)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    val verified = dish.verifiedPlaceCount > 0
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(if (verified) SuccessGreenSoft else SandDark)
+                            .padding(horizontal = 12.dp, vertical = 7.dp),
+                    ) {
+                        if (verified) {
+                            Icon(painterResource(R.drawable.ic_verified), contentDescription = null, tint = SuccessGreen, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                        }
+                        Text(
+                            if (verified) "${dish.verifiedPlaceCount} quán đã xác thực" else "Chưa có quán xác thực",
+                            color = if (verified) SuccessGreen else InkSecondary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                        )
+                    }
+                    Text(
+                        if (dish.priceRange == "Chưa có giá") "Chưa có giá" else "Giá phổ biến ${shortPrice(dish.priceRange)}",
+                        color = Ink,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(SandDark)
+                            .padding(horizontal = 12.dp, vertical = 7.dp),
+                    )
+                }
+                if (dish.description.isNotBlank()) {
+                    Text(dish.description, fontSize = 15.sp, lineHeight = 22.sp, color = Ink)
+                }
+                if (dish.tips.isNotEmpty()) {
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Sand)
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            if (regionName.isNotEmpty()) "Mẹo ăn như người $regionName" else "Mẹo ăn",
+                            color = BrickRed,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                        )
+                        dish.tips.forEach { tip ->
+                            Row {
+                                Text("•", fontSize = 15.sp, color = Ink)
+                                Spacer(Modifier.width(10.dp))
+                                Text(tip, fontSize = 15.sp, color = Ink)
+                            }
+                        }
                     }
                 }
-                Text("Mặt bằng giá do cộng đồng báo cáo", style = MaterialTheme.typography.bodySmall, color = InkTertiary)
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    dish.bestTime?.let { InfoTag(R.drawable.ic_star, it) }
-                    InfoTag(R.drawable.ic_verified, "${dish.verifiedPlaceCount} quán đã xác thực", iconTint = SuccessGreen)
-                }
-            }
-        }
-        // Giới thiệu
-        if (dish.description.isNotBlank()) {
-            item {
-                Section("Giới thiệu")
-                Text(dish.description, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 20.dp))
-            }
-        }
-        // Mẹo ăn
-        if (dish.tips.isNotEmpty()) {
-            item { Section("Mẹo ăn") }
-            items(dish.tips) { tip ->
-                Row(Modifier.padding(horizontal = 20.dp, vertical = 3.dp)) {
-                    Text("•", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.width(8.dp))
-                    Text(tip, style = MaterialTheme.typography.bodyMedium)
-                }
+                Text(
+                    "${dish.priceRange}${if (dish.priceRange != "Chưa có giá") " / ${dish.priceUnit}" else ""} · mặt bằng giá do cộng đồng báo cáo",
+                    fontSize = 12.sp,
+                    color = InkTertiary,
+                )
             }
         }
         // Quán ngon gần bạn
         item {
-            Section("Quán ngon gần bạn (${places.size})")
-            Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PlaceSort.entries.forEach { option ->
-                    FilterChip(selected = sort == option, onClick = { onSortChange(option) }, label = { Text(option.label) })
+            Column(Modifier.offset(y = (-12).dp)) {
+                Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Quán ngon gần bạn", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Ink, modifier = Modifier.weight(1f))
+                    Text(
+                        "Xem bản đồ",
+                        color = BrickRed,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onShowOnMap).padding(4.dp),
+                    )
                 }
+                Spacer(Modifier.height(10.dp))
+                LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(PlaceSort.entries) { option ->
+                        val selected = sort == option
+                        Text(
+                            option.label,
+                            fontSize = 15.sp,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (selected) Color.White else Ink,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(if (selected) BrickRed else Color.White)
+                                .then(if (selected) Modifier else Modifier.border(1.dp, FieldBorder, RoundedCornerShape(50)))
+                                .clickable { onSortChange(option) }
+                                .padding(horizontal = 18.dp, vertical = 8.dp),
+                        )
+                    }
+                }
+                if (sort == PlaceSort.DISTANCE && !hasLocation) {
+                    Text(
+                        "Chưa có vị trí của bạn — đang xếp theo uy tín.",
+                        fontSize = 12.sp,
+                        color = InkSecondary,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
             }
-            if (sort == PlaceSort.DISTANCE && !hasLocation) {
-                Text(
-                    "Chưa có vị trí của bạn — đang xếp theo uy tín.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = InkSecondary,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
-                )
-            }
-            Spacer(Modifier.height(8.dp))
         }
         if (places.isEmpty()) {
             item {
                 Text(
                     "Chưa có quán nào bán món này trên bản đồ.",
-                    style = MaterialTheme.typography.bodyMedium,
+                    fontSize = 14.sp,
                     color = InkSecondary,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
             }
         }
         items(places, key = { it.place.id }) { item ->
-            PlaceRow(item, onClick = { onPlaceClick(item.place.id) })
+            PlaceRow(item, dish, onClick = { onPlaceClick(item.place.id) })
         }
     }
 }
 
 @Composable
-private fun Section(title: String) {
-    Text(
-        title,
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 8.dp),
-    )
+private fun CircleButton(icon: Int, description: String, onClick: () -> Unit, tint: Color = Ink, enabled: Boolean = true) {
+    Box(
+        Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(Color.White)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(painterResource(icon), contentDescription = description, tint = tint, modifier = Modifier.size(22.dp))
+    }
 }
 
-/** Màu viền uy tín, cùng quy ước với ghim bản đồ (≥ 80 xanh, 60–79 vàng, < 60 xám, chưa có đánh giá xám nhạt). */
+/** Màu điểm uy tín, cùng quy ước với ghim bản đồ (≥ 80 xanh, 60–79 vàng, < 60 xám, chưa có đánh giá xám nhạt). */
+/** Có điểm uy tín thật chưa (đã có đánh giá và điểm > 0); chưa có thì hiện "Mới". */
+private fun isRated(place: PlaceSummary): Boolean = place.hasReviews && place.trustScore > 0
+
 private fun trustColor(place: PlaceSummary): Color = when {
-    !place.hasReviews -> InkTertiary
+    !isRated(place) -> InkTertiary
     place.trustScore >= 80 -> SuccessGreen
     place.trustScore >= 60 -> Amber
     else -> InkSecondary
 }
 
 @Composable
-private fun PlaceRow(item: DishPlace, onClick: () -> Unit) {
+private fun PlaceRow(item: DishPlace, dish: DishDetail, onClick: () -> Unit) {
     val p = item.place
-    val shape = RoundedCornerShape(12.dp)
+    val warn = p.priceWarning
     Row(
         Modifier
-            .padding(horizontal = 20.dp, vertical = 5.dp)
             .fillMaxWidth()
-            .clip(shape)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
             .clickable(onClick = onClick)
-            .padding(12.dp),
+            .padding(start = 16.dp, top = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Ghim thu nhỏ: icon loại món trong vòng màu uy tín
+        // Ảnh món thu nhỏ, viền màu uy tín (giữ quy ước vòng uy tín của ghim bản đồ)
         Box(
-            Modifier.size(40.dp).clip(CircleShape).border(3.dp, trustColor(p), CircleShape).background(Color.White),
-            contentAlignment = Alignment.Center,
+            Modifier
+                .size(56.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .border(2.dp, trustColor(p), RoundedCornerShape(12.dp))
         ) {
-            Icon(painterResource(p.category.iconRes), contentDescription = null, tint = Color(0xFF3A2A20), modifier = Modifier.size(20.dp))
+            FoodImage(dish.imageUrl, dish.art, Modifier.fillMaxSize())
         }
         Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(p.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                if (p.isVerified) {
-                    Spacer(Modifier.width(4.dp))
-                    Icon(painterResource(R.drawable.ic_verified), contentDescription = "Đã xác thực", tint = SuccessGreen, modifier = Modifier.size(14.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 16.dp, bottom = 8.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(p.name, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        val parts = buildList {
+                            if (warn) add("Giá cao hơn mặt bằng")
+                            item.distanceMeters?.let { add(GeoUtils.formatDistance(it)) }
+                            when (item.isOpen) {
+                                true -> add("Đang mở")
+                                false -> add("Đã đóng")
+                                null -> Unit
+                            }
+                            if (!warn && isEmpty()) add(p.address)
+                        }
+                        when {
+                            warn -> Text("⚠", color = Amber, fontSize = 13.sp)
+                            p.isVerified -> Icon(painterResource(R.drawable.ic_verified), contentDescription = "Đã xác thực", tint = SuccessGreen, modifier = Modifier.size(16.dp))
+                        }
+                        if (warn || p.isVerified) Spacer(Modifier.width(6.dp))
+                        Text(
+                            parts.joinToString(" · "),
+                            fontSize = 13.sp,
+                            color = if (warn) Amber else InkSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                Spacer(Modifier.width(8.dp))
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    val color = trustColor(p)
+                    Text(
+                        if (isRated(p)) "${p.trustScore}" else "Mới",
+                        color = color,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(color.copy(alpha = 0.12f))
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                    )
+                    item.minPrice?.let {
+                        Text("từ ${it / 1000}k", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = if (warn) Amber else Ink)
+                    }
                 }
             }
-            Text(p.address, style = MaterialTheme.typography.bodySmall, color = InkSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    if (p.hasReviews) "Uy tín ${p.trustScore}" else "Chưa có đánh giá",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = trustColor(p),
-                    fontWeight = FontWeight.SemiBold,
-                )
-                item.distanceMeters?.let { Text(GeoUtils.formatDistance(it), style = MaterialTheme.typography.labelMedium, color = InkSecondary) }
-                when (item.isOpen) {
-                    true -> Text("Đang mở", style = MaterialTheme.typography.labelMedium, color = SuccessGreen)
-                    false -> Text("Đã đóng", style = MaterialTheme.typography.labelMedium, color = InkTertiary)
-                    null -> Unit
-                }
-            }
-            if (p.priceWarning) {
-                Text("⚠ Cảnh báo giá cao hơn mặt bằng", style = MaterialTheme.typography.labelSmall, color = BrickRed)
-            }
-        }
-        item.minPrice?.let {
-            Spacer(Modifier.width(8.dp))
-            Column(horizontalAlignment = Alignment.End) {
-                Text("từ", style = MaterialTheme.typography.labelSmall, color = InkSecondary)
-                Text("${formatVnd(it)}đ", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-            }
+            HorizontalDivider(color = DividerColor)
         }
     }
 }
 
+/** Nút dưới cùng (Figma): "Xem N quán trên bản đồ". Nút Lưu chuyển lên biểu tượng bookmark ở ảnh. */
 @Composable
-private fun SaveBar(isSaved: Boolean, isSaving: Boolean, onClick: () -> Unit) {
-    Surface(shadowElevation = 8.dp) {
-        Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp)) {
-            if (isSaved) {
-                OutlinedButton(onClick = onClick, enabled = !isSaving, modifier = Modifier.fillMaxWidth().height(48.dp)) {
-                    Icon(painterResource(R.drawable.ic_check), contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Đã lưu · Bấm để bỏ lưu")
-                }
-            } else {
-                Button(onClick = onClick, enabled = !isSaving, modifier = Modifier.fillMaxWidth().height(48.dp)) {
-                    if (isSaving) {
-                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
-                    } else {
-                        Icon(painterResource(R.drawable.ic_bookmark), contentDescription = null, modifier = Modifier.size(18.dp))
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Text("Lưu vào Món muốn ăn")
-                }
+private fun MapBar(hasPlace: Boolean, onViewPlace: () -> Unit, onShowOnMap: () -> Unit) {
+    // 2 nút: "Xem quán" (Chi tiết quán) + "Xem trên bản đồ" (tab Bản đồ, chọn sẵn quán)
+    Surface(color = Color.White, shadowElevation = 8.dp) {
+        Row(
+            Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            OutlinedButton(
+                onClick = onViewPlace,
+                enabled = hasPlace,
+                shape = RoundedCornerShape(14.dp),
+                border = androidx.compose.foundation.BorderStroke(1.5.dp, if (hasPlace) BrickRed else FieldBorder),
+                modifier = Modifier.weight(1f).height(52.dp),
+            ) {
+                Text("Xem quán", color = if (hasPlace) BrickRed else InkTertiary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+            Button(
+                onClick = onShowOnMap,
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = BrickRed),
+                modifier = Modifier.weight(1.4f).height(52.dp),
+            ) {
+                Icon(painterResource(R.drawable.ic_place), contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Xem trên bản đồ", fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 1)
             }
         }
     }

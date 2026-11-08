@@ -20,23 +20,32 @@ object Routes {
     const val LOGIN_PHONE = "login_phone"   // đăng nhập bằng số điện thoại (OTP)
 
     // ===== Người 1 =====
+    const val ONBOARDING = "onboarding"     // 3 trang Giới thiệu + hỏi quyền vị trí (lần đầu mở app)
     const val REGION_SELECT = "region_select"
+    const val ARG_ASK_LOCATION = "ask"
+    /** Mẫu route có tham số tùy chọn: navigate(Routes.REGION_SELECT) vẫn khớp (ask mặc định = true). */
+    const val REGION_SELECT_PATTERN = "region_select?ask={$ARG_ASK_LOCATION}"
+    fun regionSelect(askLocation: Boolean) = "region_select?ask=$askLocation"
     const val SEARCH = "search"
     const val PROFILE_EDIT = "profile_edit"
     const val MY_REVIEWS = "my_reviews"     // "Xem tất cả" đánh giá ở Hồ sơ
+    const val BADGES = "badges"             // "Xem huy hiệu" ở Hồ sơ: 34 vùng + quán đã check-in
     const val SETTINGS = "settings"         // nút bánh răng ở Hồ sơ
     const val BUSINESS_REGISTER = "business_register" // Đăng ký doanh nghiệp (chủ quán), cần trước khi đề xuất quán
 
     // ===== Người 2 =====
     const val ARG_DISH_ID = "dishId"
     const val ARG_PLACE_ID = "placeId"
-    const val DISH = "dish/{$ARG_DISH_ID}"
+    /** placeId (tùy chọn) = quán đang xem khi mở món từ "Món của quán" -> nút "Xem quán trên bản đồ" chọn đúng quán đó. */
+    const val ARG_FROM_PLACE_ID = "fromPlace"
+    const val DISH = "dish/{$ARG_DISH_ID}?fromPlace={$ARG_FROM_PLACE_ID}"
     const val PLACE = "place/{$ARG_PLACE_ID}"
     const val PLACE_REVIEWS = "place/{$ARG_PLACE_ID}/reviews"
     const val CHECKIN = "checkin/{$ARG_PLACE_ID}"
     const val REVIEW = "review/{$ARG_PLACE_ID}"
 
-    fun dish(dishId: String) = "dish/$dishId"
+    fun dish(dishId: String, fromPlaceId: String? = null) =
+        if (fromPlaceId == null) "dish/$dishId" else "dish/$dishId?fromPlace=$fromPlaceId"
     fun place(placeId: String) = "place/$placeId"
     fun placeReviews(placeId: String) = "place/$placeId/reviews"
     fun checkin(placeId: String) = "checkin/$placeId"

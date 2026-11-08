@@ -11,6 +11,8 @@ import com.example.foodmapvn.data.model.PlaceSummary
  * - Uy tín cao: quán đã có đánh giá trước (điểm uy tín giảm dần, quán xác minh trước),
  *   quán chưa có đánh giá xếp sau; cùng hạng thì quán gần hơn đứng trước.
  * - Gần nhất: theo khoảng cách tăng dần; chưa có vị trí thì dùng thứ tự uy tín.
+ * - Giá tốt: giá thấp nhất của món tăng dần (chưa có giá xếp cuối).
+ * - Đang mở: quán đang mở trước, rồi không rõ giờ, rồi đã đóng.
  */
 object DishPlaceSorter {
 
@@ -37,6 +39,10 @@ object DishPlaceSorter {
         return when {
             sort == PlaceSort.DISTANCE && me != null ->
                 items.sortedWith(compareBy<DishPlace> { it.distanceMeters ?: Double.MAX_VALUE }.then(byTrust))
+            sort == PlaceSort.PRICE ->
+                items.sortedWith(compareBy<DishPlace> { it.minPrice ?: Long.MAX_VALUE }.then(byTrust))
+            sort == PlaceSort.OPEN_NOW ->
+                items.sortedWith(compareBy<DishPlace> { if (it.isOpen == true) 0 else if (it.isOpen == null) 1 else 2 }.then(byTrust))
             else -> items.sortedWith(byTrust)
         }
     }

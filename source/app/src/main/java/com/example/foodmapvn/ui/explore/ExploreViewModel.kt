@@ -44,6 +44,7 @@ class ExploreViewModel(
     val uiState: StateFlow<ExploreUiState> = combine(
         data, selectedFilter, filters, myLocation,
     ) { (region, dishes, places), selected, advanced, me ->
+        lastPlaces = places
         // Đổi sang tỉnh khác mà bộ lọc cũ không còn -> về "Tất cả"
         val quick = if (selected in region.quickFilters) selected else ExploreUiState.ALL
         val byName = if (quick == ExploreUiState.ALL) dishes else dishes.filter { it.name.contains(quick, ignoreCase = true) }
@@ -82,6 +83,27 @@ class ExploreViewModel(
 
     fun onAdvancedFiltersChange(value: ExploreFilters) {
         filters.value = value
+    }
+
+    @Volatile
+    private var lastPlaces: List<com.example.foodmapvn.data.model.PlaceSummary> = emptyList()
+
+    /** Số quán thỏa bộ lọc đang chỉnh (nút "Xem N quán" trong bảng Bộ lọc). */
+    fun countPlaces(filters: ExploreFilters): Int =
+        lastPlaces.count { ExploreFilter.placePasses(it, filters, myLocation.value, nowMinutes()) }
+
+    /**
+     * Nút "Xem quán" ở thẻ món: quán bán món này đứng đầu theo uy tín (cùng thứ tự với Chi tiết đặc sản),
+     * chỉ xét quán thỏa bộ lọc đang bật. null = chưa có quán nào.
+     */
+    fun topPlaceFor(dishId: String): String? {
+        val filters = this.filters.value
+        val me = myLocation.value
+        val now = nowMinutes()
+        val candidates = lastPlaces.filter { dishId in it.dishIds && ExploreFilter.placePasses(it, filters, me, now, dishId) }
+        return com.example.foodmapvn.domain.DishPlaceSorter
+            .sort(candidates, dishId, me, now, com.example.foodmapvn.data.model.PlaceSort.TRUST)
+            .firstOrNull()?.place?.id
     }
 
     private fun nowMinutes(): Int = Calendar.getInstance().let { it.get(Calendar.HOUR_OF_DAY) * 60 + it.get(Calendar.MINUTE) }

@@ -71,11 +71,24 @@ class WriteReviewViewModel(
             val uris = selectedImageUris.value
 
             for (i in uris.indices) {
+                _uiState.value = ReviewUiState.Submitting("Đang tải ảnh ${i + 1}/${uris.size}...")
                 val uri = uris[i]
                 val compressedUri = imageCompressor.compress(uri).getOrDefault(uri)
                 val uploadResult = imageUploader.upload(compressedUri)
-                uploadResult.getOrNull()?.let { uploadedUrls.add(it) }
+                val url = uploadResult.getOrNull()
+                if (url == null) {
+                    // Trước đây ảnh lỗi bị bỏ qua âm thầm -> đánh giá lưu mà không có ảnh.
+                    // Giờ dừng lại và báo rõ lý do để sửa (cấu hình Cloudinary / mạng) hoặc bỏ ảnh rồi gửi lại.
+                    val reason = uploadResult.exceptionOrNull()?.message ?: "không rõ lỗi"
+                    android.util.Log.e("FoodMap", "Tải ảnh đánh giá thất bại: $reason")
+                    _uiState.value = ReviewUiState.Error(
+                        "Không tải được ảnh ${i + 1}: $reason\nKiểm tra mạng và cấu hình Cloudinary, hoặc xoá ảnh rồi gửi lại."
+                    )
+                    return@launch
+                }
+                uploadedUrls.add(url)
             }
+            _uiState.value = ReviewUiState.Submitting("Đang gửi đánh giá...")
 
             val price = priceText.value.toLongOrNull()
             val result = placeRepository.submitReview(

@@ -22,7 +22,7 @@ private val LightColorScheme = lightColorScheme(
     onSurface = Ink,
     surfaceVariant = Sand,
     onSurfaceVariant = InkSecondary,
-    outline = SandDark,
+    outline = FieldBorder,
     outlineVariant = DividerColor,
 )
 

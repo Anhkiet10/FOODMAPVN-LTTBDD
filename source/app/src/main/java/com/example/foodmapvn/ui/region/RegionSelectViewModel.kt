@@ -28,6 +28,8 @@ data class RegionSelectUiState(
     val provinces: List<Province> = VietnamProvinces.all,
     /** true = đã chọn xong khu vực -> màn rời đi. */
     val finished: Boolean = false,
+    /** Số đặc sản/quán theo tỉnh; null = chưa tải xong. */
+    val regionSummaries: Map<String, com.example.foodmapvn.data.model.RegionSummary>? = null,
 )
 
 /**
@@ -39,6 +41,7 @@ class RegionSelectViewModel(
     private val areaRepository: AreaRepository,
     private val locationRepository: LocationRepository,
     private val analytics: AppAnalytics,
+    dishRepository: com.example.foodmapvn.data.repository.DishRepository? = null,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -48,6 +51,16 @@ class RegionSelectViewModel(
         )
     )
     val uiState: StateFlow<RegionSelectUiState> = _uiState.asStateFlow()
+
+    init {
+        dishRepository?.let { repo ->
+            viewModelScope.launch {
+                runCatching {
+                    repo.getAllRegionSummaries().collect { map -> _uiState.update { it.copy(regionSummaries = map) } }
+                }
+            }
+        }
+    }
 
     fun hasLocationPermission(): Boolean = locationRepository.hasPermission()
 
@@ -81,7 +94,7 @@ class RegionSelectViewModel(
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val container = appContainer()
-                RegionSelectViewModel(container.areaRepository, container.locationRepository, container.analytics)
+                RegionSelectViewModel(container.areaRepository, container.locationRepository, container.analytics, container.dishRepository)
             }
         }
     }

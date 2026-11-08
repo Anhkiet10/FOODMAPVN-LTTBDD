@@ -42,4 +42,19 @@ class DishPlaceSorterTest {
         assertEquals(35_000L, r.minPrice)
         assertEquals(false, r.isOpen)   // 22:00 > giờ đóng 21:00
     }
+
+    @Test fun price_order_cheapest_first_and_no_price_last() {
+        val cheap = near.copy(id = "re", minPriceByDish = mapOf("bun-bo-hue" to 25_000L))
+        val noPrice = far.copy(id = "chua-gia", minPriceByDish = emptyMap())
+        val ids = DishPlaceSorter.sort(listOf(noPrice, near, cheap), "bun-bo-hue", me, 600, PlaceSort.PRICE).map { it.place.id }
+        assertEquals(listOf("re", "gan", "chua-gia"), ids)
+    }
+
+    @Test fun open_now_order_puts_open_places_first() {
+        val night = far.copy(id = "dem", openTime = "18:00", closeTime = "23:00")
+        val ids = DishPlaceSorter.sort(listOf(night, near), "bun-bo-hue", me, 20 * 60, PlaceSort.OPEN_NOW).map { it.place.id }
+        assertEquals(listOf("dem", "gan"), ids)   // 20:00: quán đêm đang mở, quán 06–21h cũng mở -> xét uy tín (90 > 70)
+        val morning = DishPlaceSorter.sort(listOf(night, near), "bun-bo-hue", me, 7 * 60, PlaceSort.OPEN_NOW).map { it.place.id }
+        assertEquals(listOf("gan", "dem"), morning) // 07:00: chỉ quán 06–21h mở
+    }
 }

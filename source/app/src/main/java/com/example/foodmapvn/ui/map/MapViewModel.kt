@@ -26,6 +26,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlin.math.max
 
@@ -139,6 +141,18 @@ class MapViewModel(
 
     init {
         startRouteListener()
+        // "Xem quán trên bản đồ": đợi danh sách quán của vùng có quán đó rồi mở thẻ quán
+        viewModelScope.launch {
+            kotlinx.coroutines.flow.combine(
+                navigationRouteManager.focusPlaceId,
+                _uiState.map { it.places }.distinctUntilChanged(),
+            ) { id, places -> id to places }.collect { (id, places) ->
+                if (id != null && places.any { it.id == id }) {
+                    selectPlace(id)
+                    navigationRouteManager.consumeFocusPlace()
+                }
+            }
+        }
         // Quán của khu vực đang chọn (DishRepository tự đổi theo tỉnh)
         viewModelScope.launch {
             dishRepository.getPlaces().catch { emit(emptyList()) }.collect { places ->
@@ -232,6 +246,11 @@ class MapViewModel(
         navigationRouteManager.clearRoute()
         // Trả bản đồ về khung của tỉnh đang chọn
         _uiState.update { it.copy(bounds = MapBounds.forProvince(it.area, include = it.myLocation), cameraVersion = it.cameraVersion + 1) }
+    }
+
+    /** Nút "Chỉ đường" trên thẻ quán (Figma): vẽ đường tới quán ngay trên bản đồ. */
+    fun startDirections(place: com.example.foodmapvn.data.model.PlaceSummary) {
+        navigationRouteManager.startNavigation(place.id, place.name, place.address, place.location)
     }
 
     fun onMessageShown() = _uiState.update { it.copy(message = null) }

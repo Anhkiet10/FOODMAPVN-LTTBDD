@@ -1,6 +1,21 @@
 package com.example.foodmapvn.ui.map
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.sp
+import com.example.foodmapvn.domain.formatVnd
+import com.example.foodmapvn.ui.components.InfoTag
+import com.example.foodmapvn.ui.theme.Amber
+import com.example.foodmapvn.ui.theme.FieldBorder
+import com.example.foodmapvn.ui.theme.Ink
+import com.example.foodmapvn.ui.theme.InkSecondary
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,78 +58,114 @@ private fun trustColor(score: Int): Color = when (TrustLevel.of(score)) {
     TrustLevel.LOW -> Color(android.graphics.Color.parseColor(PlaceLayers.COLOR_LOW))
 }
 
-/** Thẻ tóm tắt quán khi bấm ghim: tên, uy tín, khoảng cách, giờ mở cửa, cảnh báo giá -> "Xem chi tiết". */
+/**
+ * Thẻ tóm tắt quán khi bấm ghim (bố cục theo Figma "Bản đồ quán"):
+ * tên, uy tín / khoảng cách / giờ mở / cảnh báo giá, giá từ … và 2 nút "Chi tiết" + "Chỉ đường".
+ * Giữ ghim thu nhỏ (icon loại món trong vòng màu uy tín) như ghim trên bản đồ của app.
+ */
 @Composable
 fun PlaceInfoCard(
     card: PlaceCard,
     onDetailClick: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
+    onDirectionsClick: () -> Unit = {},
 ) {
     val p = card.place
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(24.dp),
+        color = Color.White,
         shadowElevation = 8.dp,
     ) {
         Column(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 16.dp)) {
+            Box(
+                Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(end = 8.dp)
+                    .size(width = 40.dp, height = 4.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(FieldBorder)
+            )
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Ghim thu nhỏ: icon loại món trong vòng màu uy tín
                 Box(
                     Modifier
-                        .size(32.dp)
+                        .size(36.dp)
                         .clip(CircleShape)
                         .border(3.dp, trustColor(p), CircleShape)
                         .background(Color.White),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(painterResource(p.category.iconRes), contentDescription = p.category.label, tint = Color(0xFF3A2A20), modifier = Modifier.size(18.dp))
+                    Icon(painterResource(p.category.iconRes), contentDescription = p.category.label, tint = Color(0xFF3A2A20), modifier = Modifier.size(20.dp))
                 }
                 Spacer(Modifier.width(10.dp))
-                Text(
-                    p.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                IconButton(onClick = onClose) {
-                    Icon(painterResource(R.drawable.ic_close), contentDescription = "Đóng", modifier = Modifier.size(18.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(p.name, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        listOf(p.category.label, p.address).filter { it.isNotBlank() }.joinToString(" · "),
+                        fontSize = 13.sp,
+                        color = InkSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
-            }
-            Text(p.category.label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-            if (p.address.isNotBlank()) {
-                Text(p.address, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                IconButton(onClick = onClose) {
+                    Icon(painterResource(R.drawable.ic_close), contentDescription = "Đóng", tint = InkSecondary, modifier = Modifier.size(18.dp))
+                }
             }
             Spacer(Modifier.size(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(10.dp).clip(CircleShape).background(trustColor(p)))
-                    Spacer(Modifier.width(6.dp))
-                    Text(if (p.hasReviews) "Uy tín ${p.trustScore}" else "Chưa có đánh giá", style = MaterialTheme.typography.bodyMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                InfoTag(
+                    icon = R.drawable.ic_verified,
+                    text = if (p.hasReviews) "Uy tín ${p.trustScore}" else "Chưa có đánh giá",
+                    iconTint = trustColor(p),
+                )
+                card.distance?.let { InfoTag(icon = R.drawable.ic_place_outline, text = it) }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (p.ratingAvg > 0) {
+                    InfoTag(icon = R.drawable.ic_star, text = String.format(java.util.Locale.US, "%.1f", p.ratingAvg).replace('.', ','), iconTint = Amber)
                 }
-                if (p.ratingAvg > 0) Text("★ " + String.format(java.util.Locale.US, "%.1f", p.ratingAvg).replace('.', ','), style = MaterialTheme.typography.bodyMedium)
-                card.distance?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 when (card.isOpen) {
-                    true -> Text("Đang mở", style = MaterialTheme.typography.bodyMedium, color = SuccessGreen)
-                    false -> Text("Đã đóng", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    true -> Text("Đang mở", fontSize = 14.sp, color = SuccessGreen)
+                    false -> Text("Đã đóng", fontSize = 14.sp, color = InkSecondary)
                     null -> Unit
                 }
             }
             if (p.priceWarning) {
-                Spacer(Modifier.size(6.dp))
-                Text("⚠ Quán bị cảnh báo giá cao hơn mặt bằng", style = MaterialTheme.typography.bodySmall, color = BrickRed)
+                Spacer(Modifier.size(4.dp))
+                Text("⚠ Quán bị cảnh báo giá cao hơn mặt bằng", fontSize = 13.sp, color = Amber, fontWeight = FontWeight.SemiBold)
             }
             Spacer(Modifier.size(12.dp))
-            Button(
-                onClick = onDetailClick,
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(end = 8.dp),
-            ) { Text("Xem chi tiết quán") }
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 8.dp)) {
+                val minPrice = p.minPriceByDish.values.minOrNull()
+                Text(
+                    buildAnnotatedString {
+                        if (minPrice != null) {
+                            withStyle(SpanStyle(fontSize = 13.sp, color = InkSecondary)) { append("từ ") }
+                            withStyle(SpanStyle(fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Ink)) { append("${formatVnd(minPrice)}đ") }
+                        } else {
+                            withStyle(SpanStyle(fontSize = 14.sp, color = InkSecondary)) { append("Chưa có giá") }
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+                OutlinedButton(
+                    onClick = onDetailClick,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, FieldBorder),
+                    contentPadding = PaddingValues(horizontal = 14.dp),
+                    modifier = Modifier.height(40.dp),
+                ) { Text("Chi tiết", color = Ink, fontWeight = FontWeight.SemiBold) }
+                Spacer(Modifier.width(8.dp))
+                Button(
+                    onClick = onDirectionsClick,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = BrickRed),
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    modifier = Modifier.height(40.dp),
+                ) { Text("Chỉ đường", fontWeight = FontWeight.SemiBold) }
+            }
         }
     }
 }

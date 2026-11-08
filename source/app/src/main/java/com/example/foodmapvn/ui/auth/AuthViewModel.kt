@@ -53,6 +53,14 @@ class AuthViewModel(
         submit(onSuccess = { analytics.signUp() }) { authRepository.register(s.name, s.email, s.password) }
     }
 
+    /** Đăng ký theo Figma: thêm ô "Nhập lại mật khẩu" và ô đồng ý Điều khoản. */
+    fun register(confirmPassword: String, acceptedTerms: Boolean) {
+        val s = _uiState.value
+        if (s.password != confirmPassword) return showError("Mật khẩu nhập lại không khớp")
+        if (!acceptedTerms) return showError("Bạn cần đồng ý Điều khoản và Chính sách")
+        register()
+    }
+
     fun sendPasswordReset() {
         val s = _uiState.value
         validate(email = s.email, password = null)?.let { return showError(it) }

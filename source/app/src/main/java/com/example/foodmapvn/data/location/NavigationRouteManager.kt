@@ -28,6 +28,26 @@ class NavigationRouteManager {
         _activeDestination.value = null
     }
 
+    /** Chỉ chuyển sang tab Bản đồ (không vẽ đường), vd. nút "Xem N quán trên bản đồ" ở Chi tiết đặc sản. */
+    fun requestMapTab() {
+        _requestedTabSwitch.value = true
+    }
+
+    private val _focusPlaceId = MutableStateFlow<String?>(null)
+    /** Quán cần chọn sẵn khi mở tab Bản đồ (nút "Xem quán trên bản đồ"); null = không có. */
+    val focusPlaceId: StateFlow<String?> = _focusPlaceId.asStateFlow()
+
+    /** Chuyển sang tab Bản đồ và mở thẻ của quán [placeId] (bỏ đường chỉ dẫn đang có). */
+    fun showPlaceOnMap(placeId: String) {
+        _activeDestination.value = null
+        _focusPlaceId.value = placeId
+        _requestedTabSwitch.value = true
+    }
+
+    fun consumeFocusPlace() {
+        _focusPlaceId.value = null
+    }
+
     fun consumeTabSwitch() {
         _requestedTabSwitch.value = false
     }

@@ -19,6 +19,7 @@ import org.maplibre.android.style.layers.PropertyFactory.circleColor
 import org.maplibre.android.style.layers.PropertyFactory.circleOpacity
 import org.maplibre.android.style.layers.PropertyFactory.circleRadius
 import org.maplibre.android.style.layers.PropertyFactory.circleStrokeColor
+import org.maplibre.android.style.layers.PropertyFactory.circleStrokeOpacity
 import org.maplibre.android.style.layers.PropertyFactory.circleStrokeWidth
 import org.maplibre.android.style.layers.PropertyFactory.circleTranslate
 import org.maplibre.android.style.layers.PropertyFactory.iconAllowOverlap
@@ -56,6 +57,8 @@ object PlaceLayers {
     private const val WARNING_LAYER = "places-warning"
     private const val LABEL_LAYER = "places-label"
     private const val SELECTED_LAYER = "place-selected-halo"
+    /** Màu vòng quán đang chọn (xanh biển). */
+    const val COLOR_SELECTED = "#1E88E5"
     private val CLICKABLE = arrayOf(DOT_LAYER, RING_LAYER, ICON_LAYER)
 
     // Cùng bảng màu với giao diện (ui/theme/Color.kt)
@@ -102,10 +105,15 @@ object PlaceLayers {
         style.addSource(GeoJsonSource(SOURCE))
         style.addSource(GeoJsonSource(SELECTED_SOURCE))
 
-        // Vòng sáng quanh quán đang chọn
+        // Vòng xanh biển quanh quán đang chọn (dễ thấy trên nền bản đồ, không trùng màu uy tín)
         style.addLayer(
             CircleLayer(SELECTED_LAYER, SELECTED_SOURCE).withProperties(
-                circleRadius(24f), circleColor("#1E1E1E"), circleOpacity(0.18f),
+                circleRadius(26f),
+                circleColor(COLOR_SELECTED),
+                circleOpacity(0.22f),
+                circleStrokeWidth(3f),
+                circleStrokeColor(COLOR_SELECTED),
+                circleStrokeOpacity(1f),
             )
         )
         // Xa: chấm nhỏ

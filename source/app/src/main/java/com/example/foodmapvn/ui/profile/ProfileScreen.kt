@@ -59,6 +59,10 @@ import com.example.foodmapvn.ui.theme.InkTertiary
 import com.example.foodmapvn.ui.theme.Sand
 import com.example.foodmapvn.ui.theme.SandDark
 import com.example.foodmapvn.ui.theme.SuccessGreen
+import com.example.foodmapvn.ui.theme.InkSecondary
+import com.example.foodmapvn.ui.theme.Ink
+import com.example.foodmapvn.ui.theme.FieldBorder
+import com.example.foodmapvn.ui.theme.AvatarSoft
 import com.example.foodmapvn.ui.theme.SuccessGreenSoft
 
 /** Nối ProfileViewModel với ProfileScreen. */
@@ -69,6 +73,7 @@ fun ProfileRoute(
     onNotificationsClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onSeeAllReviewsClick: () -> Unit = {},
+    onBadgesClick: () -> Unit = {},
     onReviewPlaceClick: (placeId: String) -> Unit = {},
     onWishlistClick: () -> Unit = {},
     onMySuggestionsClick: () -> Unit = {},
@@ -92,6 +97,7 @@ fun ProfileRoute(
             onNotificationsClick = onNotificationsClick,
             onSettingsClick = onSettingsClick,
             onSeeAllReviewsClick = onSeeAllReviewsClick,
+            onBadgesClick = onBadgesClick,
             onReviewClick = { review -> if (review.placeId.isNotBlank()) onReviewPlaceClick(review.placeId) },
             onWishlistClick = onWishlistClick,
             onMySuggestionsClick = onMySuggestionsClick,
@@ -118,9 +124,9 @@ fun GuestProfile(onLoginClick: () -> Unit, modifier: Modifier = Modifier) {
     ) {
         Box(
             Modifier
-                .size(72.dp)
+                .size(88.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
+                .background(AvatarSoft),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -169,6 +175,7 @@ fun ProfileScreen(
     onNotificationsClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onSeeAllReviewsClick: () -> Unit = {},
+    onBadgesClick: () -> Unit = {},
     onReviewClick: (ReviewSummary) -> Unit = {},
     onWishlistClick: () -> Unit = {},
     onMySuggestionsClick: () -> Unit = {},
@@ -201,16 +208,29 @@ fun ProfileScreen(
         StatsRow(state.user)
 
         Spacer(Modifier.height(24.dp))
-        SectionTitle("Huy hiệu theo vùng")
-        Spacer(Modifier.height(4.dp))
-        state.regionBadges.forEach { RegionBadgeRow(it) }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SectionTitle("Huy hiệu theo vùng", Modifier.weight(1f))
+            // Mở màn 34 vùng + các quán đã check-in
+            Text(
+                "Xem huy hiệu",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .clickable(onClick = onBadgesClick)
+                    .padding(4.dp),
+            )
+        }
+        // Chi tiết 34 vùng xem ở màn "Xem huy hiệu" (BadgesScreen)
 
         Spacer(Modifier.height(16.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             SectionTitle("Đánh giá gần đây", Modifier.weight(1f))
             if (state.recentReviews.isNotEmpty()) Text(
                 "Xem tất cả",
-                style = MaterialTheme.typography.labelLarge,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .clip(RoundedCornerShape(6.dp))
@@ -291,7 +311,7 @@ private fun ProfileTopBar(
     onSettingsClick: () -> Unit,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("Hồ sơ", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
+        Text("Hồ sơ", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Ink, modifier = Modifier.weight(1f))
         IconButton(onClick = onNotificationsClick) {
             Box {
                 Icon(painterResource(R.drawable.ic_notifications), contentDescription = "Thông báo")
@@ -301,7 +321,7 @@ private fun ProfileTopBar(
                             .size(8.dp)
                             .align(Alignment.TopEnd)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary)
+                            .background(Color(0xFFD32F2F))
                     )
                 }
             }
@@ -317,9 +337,9 @@ private fun UserHeader(user: UserProfile, onClick: () -> Unit = {}) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier
-                .size(72.dp)
+                .size(88.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer)
+                .background(AvatarSoft)
                 .clickable(onClick = onClick),
             contentAlignment = Alignment.Center,
         ) {
@@ -333,18 +353,18 @@ private fun UserHeader(user: UserProfile, onClick: () -> Unit = {}) {
             } else {
                 Text(
                     user.avatarInitial,
-                    fontSize = 28.sp,
+                    fontSize = 34.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = BrickRed,
                 )
             }
         }
         Spacer(Modifier.width(16.dp))
         Column {
-            Text(user.name, style = MaterialTheme.typography.titleLarge)
+            Text(user.name, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Ink)
             Text(
                 "Thành viên từ ${user.memberSince}",
-                style = MaterialTheme.typography.bodySmall,
+                fontSize = 15.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             user.localBadge?.let { badge ->
@@ -363,7 +383,7 @@ private fun UserHeader(user: UserProfile, onClick: () -> Unit = {}) {
                         modifier = Modifier.size(12.dp),
                     )
                     Spacer(Modifier.width(4.dp))
-                    Text(badge, style = MaterialTheme.typography.labelMedium, color = SuccessGreen)
+                    Text(badge, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = SuccessGreen)
                 }
             }
         }
@@ -383,19 +403,19 @@ private fun StatsRow(user: UserProfile) {
 private fun StatCard(value: Int, label: String, modifier: Modifier = Modifier) {
     Column(
         modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(Sand)
-            .padding(vertical = 14.dp),
+            .padding(vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("$value", fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("$value", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Ink)
+        Text(label, fontSize = 14.sp, color = InkSecondary)
     }
 }
 
 @Composable
 private fun SectionTitle(text: String, modifier: Modifier = Modifier) {
-    Text(text, style = MaterialTheme.typography.titleMedium, modifier = modifier)
+    Text(text, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Ink, modifier = modifier)
 }
 
 @Composable
@@ -420,40 +440,40 @@ private fun RegionBadgeRow(badge: RegionBadge) {
             ),
             contentDescription = null,
             tint = iconTint,
-            modifier = Modifier.size(32.dp),
+            modifier = Modifier.size(40.dp),
         )
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
-            Text(badge.region, style = MaterialTheme.typography.titleMedium)
-            Text(badge.description, style = MaterialTheme.typography.bodySmall, color = accent)
+            Text(badge.region, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Ink)
+            Text(badge.description, fontSize = 14.sp, color = accent)
         }
         ProgressBar(
             progress = badge.progress,
             color = barColor,
-            trackColor = Sand,
+            trackColor = SandDark,
             modifier = Modifier
-                .width(110.dp)
-                .height(6.dp),
+                .width(130.dp)
+                .height(8.dp),
         )
     }
 }
 
 @Composable
 internal fun ReviewCard(review: ReviewSummary, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(12.dp)
+    val shape = RoundedCornerShape(14.dp)
     Row(
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+            .border(1.dp, FieldBorder, shape)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             review.placeName,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
@@ -490,7 +510,7 @@ private fun MenuRow(
             .padding(vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        Text(label, fontSize = 16.sp, color = Ink, modifier = Modifier.weight(1f))
         if (count != null) {
             Text("$count", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.width(6.dp))

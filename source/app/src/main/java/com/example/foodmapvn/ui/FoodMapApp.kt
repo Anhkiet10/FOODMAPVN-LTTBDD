@@ -116,201 +116,217 @@ fun FoodMapApp() {
                 }
             }
             CompositionLocalProvider(LocalLoginGate provides loginGate) {
-            NavHost(navController = navController, startDestination = Routes.SPLASH) {
-                // ===== Người 1: khung chung, Khám phá, Bản đồ, Hồ sơ =====
-                composable(Routes.SPLASH) {
-                    SplashRoute(onFinished = { next ->
-                        // Chưa xem Giới thiệu (kể cả máy đã chọn khu vực từ bản cũ) -> hiện các bước như Figma
-                        val target = if (!onboardingPrefs.getBoolean("done", false)) Routes.ONBOARDING else next
-                        navController.navigate(target) { popUpTo(Routes.SPLASH) { inclusive = true } }
-                    })
-                }
-                composable(Routes.ONBOARDING) {
-                    OnboardingScreen(onFinished = { ask ->
-                        onboardingPrefs.edit().putBoolean("done", true).apply()
-                        startupAsk = ask
-                        val next = if (currentUser == null) Routes.LOGIN else startupNext()
-                        if (next != Routes.LOGIN) startupAsk = null
-                        navController.navigate(next) { popUpTo(Routes.ONBOARDING) { inclusive = true } }
-                    })
-                }
-                composable(
-                    Routes.REGION_SELECT_PATTERN,
-                    arguments = listOf(navArgument(Routes.ARG_ASK_LOCATION) {
-                        type = NavType.BoolType
-                        defaultValue = true
-                    }),
-                ) { entry ->
-                    RegionSelectRoute(
-                        askLocationOnStart = entry.arguments?.getBoolean(Routes.ARG_ASK_LOCATION) ?: true,
-                        onDone = {
-                            // Lần đầu (không có màn trước) -> vào app; mở từ Khám phá -> quay lại
-                            if (navController.previousBackStackEntry == null) {
-                                navController.navigate(Routes.MAIN) { popUpTo(Routes.REGION_SELECT_PATTERN) { inclusive = true } }
-                            } else {
-                                navController.popBackStack()
-                            }
-                        },
-                        onBack = { navController.popBackStack() },
-                    )
-                }
-                composable(Routes.MAIN) {
-                    MainTabs(
-                        onLoginClick = { navController.navigate(Routes.LOGIN) },
-                        onRegionClick = { navController.navigate(Routes.REGION_SELECT) },
-                        onSearchClick = { navController.navigate(Routes.SEARCH) },
-                        onEditProfileClick = { navController.navigate(Routes.PROFILE_EDIT) },
-                        onSettingsClick = { navController.navigate(Routes.SETTINGS) },
-                        onMyReviewsClick = { navController.navigate(Routes.MY_REVIEWS) },
-                        onBadgesClick = { navController.navigate(Routes.BADGES) },
-                        // 3 màn của Người 3: chưa có thì báo nhẹ, không crash
-                        onNotificationsClick = { navController.navigateIfReady(Routes.NOTIFICATIONS, context, "Thông báo") },
-                        onMySuggestionsClick = { navController.navigateIfReady(Routes.SUGGESTION_MINE, context, "Đề xuất của tôi") },
-                        onAdminClick = { navController.navigateIfReady(Routes.ADMIN, context, "Quản trị") },
-                        onBusinessClick = { navController.navigate(Routes.BUSINESS_REGISTER) },
-                        onNewSuggestionClick = openNewSuggestion,
-                        onPlaceClick = { navController.navigate(Routes.place(it)) },
-                        onDishClick = { navController.navigate(Routes.dish(it.id)) },
-                        onDishIdClick = { navController.navigate(Routes.dish(it)) },
-                    )
-                }
-                // Đăng nhập xong (mọi cách) -> đóng các màn đăng nhập, quay về màn trước khi mở Đăng nhập
-                composable(Routes.LOGIN) {
-                    LoginRoute(
-                        onDone = finishAuth,
-                        onPhoneClick = { navController.navigate(Routes.LOGIN_PHONE) },
-                        onRegisterClick = { navController.navigate(Routes.REGISTER) },
-                        onForgotPasswordClick = { navController.navigate(Routes.FORGOT_PASSWORD) },
-                    )
-                }
-                composable(Routes.REGISTER) {
-                    RegisterRoute(
-                        onDone = finishAuth,
-                        onBackToLogin = { navController.popBackStack() },
-                    )
-                }
-                composable(Routes.FORGOT_PASSWORD) {
-                    ForgotPasswordRoute(onBack = { navController.popBackStack() })
-                }
-                composable(Routes.LOGIN_PHONE) {
-                    PhoneLoginRoute(
-                        onDone = finishAuth,
-                        onBack = { navController.popBackStack() },
-                    )
-                }
-                composable(Routes.SEARCH) {
-                    SearchRoute(
-                        onBack = { navController.popBackStack() },
-                        onDishClick = { navController.navigate(Routes.dish(it.id)) },
-                        onPlaceClick = { navController.navigate(Routes.place(it.id)) },
-                    )
-                }
-                composable(Routes.PROFILE_EDIT) {
-                    EditProfileRoute(
-                        onDone = { navController.popBackStack() },
-                        onBack = { navController.popBackStack() },
-                    )
-                }
-                composable(Routes.BADGES) {
-                    com.example.foodmapvn.ui.profile.BadgesRoute(
-                        onBack = { navController.popBackStack() },
-                        onPlaceClick = { navController.navigate(Routes.place(it)) },
-                    )
-                }
-                composable(Routes.MY_REVIEWS) {
-                    MyReviewsRoute(
-                        onBack = { navController.popBackStack() },
-                        onPlaceClick = { navController.navigateIfReady(Routes.place(it), context, "Chi tiết quán") },
-                    )
-                }
-                composable(Routes.BUSINESS_REGISTER) {
-                    BusinessRegisterRoute(
-                        onBack = { navController.popBackStack() },
-                        onNewSuggestionClick = openNewSuggestion,
-                    )
-                }
-                composable(Routes.SETTINGS) {
-                    SettingsRoute(
-                        onBack = { navController.popBackStack() },
-                        onRegionClick = { navController.navigate(Routes.REGION_SELECT) },
-                    )
-                }
-
-                // ===== Người 2: món, quán, check-in, đánh giá =====
-                // UC-08 Chi tiết đặc sản + UC-10 Lưu vào Món muốn ăn
-                composable(
-                    route = Routes.DISH,
-                    arguments = listOf(
-                        navArgument(Routes.ARG_DISH_ID) { type = NavType.StringType },
-                        navArgument(Routes.ARG_FROM_PLACE_ID) {
-                            type = NavType.StringType
-                            nullable = true
-                            defaultValue = null
-                        },
-                    ),
-                ) { entry ->
-                    DishDetailRoute(
-                        onBack = { navController.popBackStack() },
-                        onPlaceClick = { navController.navigate(Routes.place(it)) },
-                        fromPlaceId = entry.arguments?.getString(Routes.ARG_FROM_PLACE_ID),
-                        // "Xem quán trên bản đồ": sang tab Bản đồ và mở sẵn thẻ của quán đó
-                        onShowOnMap = { placeId ->
-                            if (placeId != null) container.navigationRouteManager.showPlaceOnMap(placeId)
-                            else container.navigationRouteManager.requestMapTab()
-                            navController.popBackStack(Routes.MAIN, inclusive = false)
-                        },
-                    )
-                }
-                // UC-09 Chi tiết quán, danh sách đánh giá; UC-12 Check-in; UC-13 Viết đánh giá; chỉ đường
-                composable(Routes.PLACE) { entry ->
-                    val placeId = entry.arguments?.getString(Routes.ARG_PLACE_ID)
-                    PlaceDetailRoute(
-                        onBack = { navController.popBackStack() },
-                        // "Món của quán" -> Chi tiết đặc sản (nhớ quán đang xem để "Xem quán trên bản đồ" chọn đúng quán)
-                        onDishClick = { dishId -> navController.navigate(Routes.dish(dishId, placeId)) },
-                        onCheckInClick = { placeId -> navController.navigate(Routes.checkin(placeId)) },
-                        onWriteReviewClick = { placeId -> navController.navigate(Routes.review(placeId)) },
-                        onAllReviewsClick = { placeId -> navController.navigate(Routes.placeReviews(placeId)) },
-                        onDirectionsClick = { place ->
-                            container.navigationRouteManager.startNavigation(
-                                placeId = place.id,
-                                placeName = place.name,
-                                address = place.address,
-                                location = place.location,
+                NavHost(navController = navController, startDestination = Routes.SPLASH) {
+                    // ===== Người 1: khung chung, Khám phá, Bản đồ, Hồ sơ =====
+                    composable(Routes.SPLASH) {
+                        SplashRoute(onFinished = { next ->
+                            // Chưa xem Giới thiệu (kể cả máy đã chọn khu vực từ bản cũ) -> hiện các bước như Figma
+                            val target = if (!onboardingPrefs.getBoolean("done", false)) Routes.ONBOARDING else next
+                            navController.navigate(target) { popUpTo(Routes.SPLASH) { inclusive = true } }
+                        })
+                    }
+                    composable(Routes.ONBOARDING) {
+                        OnboardingScreen(onFinished = { ask ->
+                            onboardingPrefs.edit().putBoolean("done", true).apply()
+                            startupAsk = ask
+                            val next = if (currentUser == null) Routes.LOGIN else startupNext()
+                            if (next != Routes.LOGIN) startupAsk = null
+                            navController.navigate(next) { popUpTo(Routes.ONBOARDING) { inclusive = true } }
+                        })
+                    }
+                    composable(
+                        Routes.REGION_SELECT_PATTERN,
+                        arguments = listOf(navArgument(Routes.ARG_ASK_LOCATION) {
+                            type = NavType.BoolType
+                            defaultValue = true
+                        }),
+                    ) { entry ->
+                        RegionSelectRoute(
+                            askLocationOnStart = entry.arguments?.getBoolean(Routes.ARG_ASK_LOCATION) ?: true,
+                            onDone = {
+                                // Lần đầu (không có màn trước) -> vào app; mở từ Khám phá -> quay lại
+                                if (navController.previousBackStackEntry == null) {
+                                    navController.navigate(Routes.MAIN) { popUpTo(Routes.REGION_SELECT_PATTERN) { inclusive = true } }
+                                } else {
+                                    navController.popBackStack()
+                                }
+                            },
+                            onBack = { navController.popBackStack() },
+                        )
+                    }
+                    // Màn chính: 4 tab (Khám phá / Bản đồ / Đã lưu / Hồ sơ).
+                    // THIẾU route này trước đây -> navigate("main") bị IllegalArgumentException.
+                    composable(Routes.MAIN) {
+                        MainTabs(
+                            onLoginClick = { navController.navigate(Routes.LOGIN) },
+                            onRegionClick = { navController.navigate(Routes.REGION_SELECT) },
+                            onSearchClick = { navController.navigate(Routes.SEARCH) },
+                            onEditProfileClick = { navController.navigate(Routes.PROFILE_EDIT) },
+                            onSettingsClick = { navController.navigate(Routes.SETTINGS) },
+                            onMyReviewsClick = { navController.navigate(Routes.MY_REVIEWS) },
+                            onBadgesClick = { navController.navigate(Routes.BADGES) },
+                            onNotificationsClick = { /* TODO: Routes.NOTIFICATIONS khi Người 3 làm xong */ },
+                            onMySuggestionsClick = { /* TODO: Routes.SUGGESTION_MINE khi Người 3 làm xong */ },
+                            onAdminClick = { navController.navigate(Routes.ADMIN) },
+                            onBusinessClick = { navController.navigate(Routes.BUSINESS_REGISTER) },
+                            onNewSuggestionClick = openNewSuggestion,
+                            onPlaceClick = { navController.navigate(Routes.place(it)) },
+                            onDishClick = { navController.navigate(Routes.dish(it.id)) },
+                            onDishIdClick = { navController.navigate(Routes.dish(it)) },
+                        )
+                    }
+                    // ===== Người 3 =====
+                    composable(Routes.ADMIN) {
+                        val adminVm = remember(container) {
+                            com.example.foodmapvn.ui.admin.AdminViewModel(
+                                adminRepository = container.adminRepository,
+                                suggestionRepository = container.suggestionRepository,
+                                reportRepository = container.reportRepository,
+                                businessRepository = container.businessRepository
                             )
-                            navController.popBackStack(Routes.MAIN, inclusive = false)
-                        },
-                    )
-                }
-                composable(Routes.PLACE_REVIEWS) {
-                    PlaceReviewsRoute(
-                        onBack = { navController.popBackStack() },
-                    )
-                }
-                composable(Routes.CHECKIN) {
-                    CheckInRoute(
-                        onDone = { navController.popBackStack() },
-                        onBack = { navController.popBackStack() },
-                    )
-                }
-                composable(Routes.REVIEW) {
-                    WriteReviewRoute(
-                        onDone = { navController.popBackStack() },
-                        onBack = { navController.popBackStack() },
-                    )
-                }
+                        }
+                        com.example.foodmapvn.ui.admin.AdminScreen(
+                            onBack = { navController.popBackStack() },
+                            adminViewModel = adminVm
+                        )
+                    }
+                    // Đăng nhập xong (mọi cách) -> đóng các màn đăng nhập, quay về màn trước khi mở Đăng nhập
+                    composable(Routes.LOGIN) {
+                        LoginRoute(
+                            onDone = finishAuth,
+                            onPhoneClick = { navController.navigate(Routes.LOGIN_PHONE) },
+                            onRegisterClick = { navController.navigate(Routes.REGISTER) },
+                            onForgotPasswordClick = { navController.navigate(Routes.FORGOT_PASSWORD) },
+                        )
+                    }
+                    composable(Routes.REGISTER) {
+                        RegisterRoute(
+                            onDone = finishAuth,
+                            onBackToLogin = { navController.popBackStack() },
+                        )
+                    }
+                    composable(Routes.FORGOT_PASSWORD) {
+                        ForgotPasswordRoute(onBack = { navController.popBackStack() })
+                    }
+                    composable(Routes.LOGIN_PHONE) {
+                        PhoneLoginRoute(
+                            onDone = finishAuth,
+                            onBack = { navController.popBackStack() },
+                        )
+                    }
+                    composable(Routes.SEARCH) {
+                        SearchRoute(
+                            onBack = { navController.popBackStack() },
+                            onDishClick = { navController.navigate(Routes.dish(it.id)) },
+                            onPlaceClick = { navController.navigate(Routes.place(it.id)) },
+                        )
+                    }
+                    composable(Routes.PROFILE_EDIT) {
+                        EditProfileRoute(
+                            onDone = { navController.popBackStack() },
+                            onBack = { navController.popBackStack() },
+                        )
+                    }
+                    composable(Routes.BADGES) {
+                        com.example.foodmapvn.ui.profile.BadgesRoute(
+                            onBack = { navController.popBackStack() },
+                            onPlaceClick = { navController.navigate(Routes.place(it)) },
+                        )
+                    }
+                    composable(Routes.MY_REVIEWS) {
+                        MyReviewsRoute(
+                            onBack = { navController.popBackStack() },
+                            onPlaceClick = { navController.navigateIfReady(Routes.place(it), context, "Chi tiết quán") },
+                        )
+                    }
+                    composable(Routes.BUSINESS_REGISTER) {
+                        BusinessRegisterRoute(
+                            onBack = { navController.popBackStack() },
+                            onNewSuggestionClick = openNewSuggestion,
+                        )
+                    }
+                    composable(Routes.SETTINGS) {
+                        SettingsRoute(
+                            onBack = { navController.popBackStack() },
+                            onRegionClick = { navController.navigate(Routes.REGION_SELECT) },
+                        )
+                    }
 
-                // ===== Người 3: đề xuất, báo cáo, thông báo, admin =====
-                // Nhật - Tuần 1: Đề xuất quán mới
-                composable(Routes.SUGGESTION_NEW) {
-                    com.example.foodmapvn.ui.suggestion.SuggestionNewRoute(
-                        onBack = { navController.popBackStack() },
-                        onFinished = { navController.popBackStack() },
-                    )
-                }
-                // thêm ( Routes.SUGGESTION_MINE, Routes.REPORT, Routes.NOTIFICATIONS)
+                    // ===== Người 2: món, quán, check-in, đánh giá =====
+                    // UC-08 Chi tiết đặc sản + UC-10 Lưu vào Món muốn ăn
+                    composable(
+                        route = Routes.DISH,
+                        arguments = listOf(
+                            navArgument(Routes.ARG_DISH_ID) { type = NavType.StringType },
+                            navArgument(Routes.ARG_FROM_PLACE_ID) {
+                                type = NavType.StringType
+                                nullable = true
+                                defaultValue = null
+                            },
+                        ),
+                    ) { entry ->
+                        DishDetailRoute(
+                            onBack = { navController.popBackStack() },
+                            onPlaceClick = { navController.navigate(Routes.place(it)) },
+                            fromPlaceId = entry.arguments?.getString(Routes.ARG_FROM_PLACE_ID),
+                            // "Xem quán trên bản đồ": sang tab Bản đồ và mở sẵn thẻ của quán đó
+                            onShowOnMap = { placeId ->
+                                if (placeId != null) container.navigationRouteManager.showPlaceOnMap(placeId)
+                                else container.navigationRouteManager.requestMapTab()
+                                navController.popBackStack(Routes.MAIN, inclusive = false)
+                            },
+                        )
+                    }
+                    // UC-09 Chi tiết quán, danh sách đánh giá; UC-12 Check-in; UC-13 Viết đánh giá; chỉ đường
+                    composable(Routes.PLACE) { entry ->
+                        val placeId = entry.arguments?.getString(Routes.ARG_PLACE_ID)
+                        PlaceDetailRoute(
+                            onBack = { navController.popBackStack() },
+                            // "Món của quán" -> Chi tiết đặc sản (nhớ quán đang xem để "Xem quán trên bản đồ" chọn đúng quán)
+                            onDishClick = { dishId -> navController.navigate(Routes.dish(dishId, placeId)) },
+                            onCheckInClick = { placeId -> navController.navigate(Routes.checkin(placeId)) },
+                            onWriteReviewClick = { placeId -> navController.navigate(Routes.review(placeId)) },
+                            onAllReviewsClick = { placeId -> navController.navigate(Routes.placeReviews(placeId)) },
+                            onDirectionsClick = { place ->
+                                container.navigationRouteManager.startNavigation(
+                                    placeId = place.id,
+                                    placeName = place.name,
+                                    address = place.address,
+                                    location = place.location,
+                                )
+                                navController.popBackStack(Routes.MAIN, inclusive = false)
+                            },
+                        )
+                    }
+                    composable(Routes.PLACE_REVIEWS) {
+                        PlaceReviewsRoute(
+                            onBack = { navController.popBackStack() },
+                        )
+                    }
+                    composable(Routes.CHECKIN) {
+                        CheckInRoute(
+                            onDone = { navController.popBackStack() },
+                            onBack = { navController.popBackStack() },
+                        )
+                    }
+                    composable(Routes.REVIEW) {
+                        WriteReviewRoute(
+                            onDone = { navController.popBackStack() },
+                            onBack = { navController.popBackStack() },
+                        )
+                    }
 
-            }
+                    // ===== Người 3: đề xuất, báo cáo, thông báo, admin =====
+                    // Nhật - Tuần 1: Đề xuất quán mới
+                    composable(Routes.SUGGESTION_NEW) {
+                        com.example.foodmapvn.ui.suggestion.SuggestionNewRoute(
+                            onBack = { navController.popBackStack() },
+                            onFinished = { navController.popBackStack() },
+                        )
+                    }
+                    // thêm ( Routes.SUGGESTION_MINE, Routes.REPORT, Routes.NOTIFICATIONS)
+
+                }
             }
         }
     }

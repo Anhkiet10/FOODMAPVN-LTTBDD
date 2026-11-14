@@ -74,7 +74,7 @@ suspend fun requestGoogleIdToken(activity: Activity): Result<String> {
 /** Đã điền App ID / Client Token trong res/values/social_login.xml chưa. */
 fun isFacebookConfigured(context: Context): Boolean =
     !context.getString(R.string.facebook_app_id).startsWith("YOUR_") &&
-        !context.getString(R.string.facebook_client_token).startsWith("YOUR_")
+            !context.getString(R.string.facebook_client_token).startsWith("YOUR_")
 
 /**
  * Trả về hàm bấm nút "Tiếp tục với Facebook".

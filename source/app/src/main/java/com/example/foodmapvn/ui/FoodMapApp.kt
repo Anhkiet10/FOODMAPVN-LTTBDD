@@ -324,6 +324,30 @@ fun FoodMapApp() {
                             onFinished = { navController.popBackStack() },
                         )
                     }
+                    // Nhật - Tuần 2: Báo cáo vi phạm (UC-15)
+                    composable(Routes.REPORT) { entry ->
+                        com.example.foodmapvn.ui.report.ReportRoute(
+                            reportRepository = container.reportRepository,
+                            targetType = entry.arguments?.getString(Routes.ARG_TARGET_TYPE) ?: "PLACE",
+                            targetId = entry.arguments?.getString(Routes.ARG_TARGET_ID) ?: "",
+                            onBack = { navController.popBackStack() },
+                        )
+                    }
+                    // Nhật - Tuần 2: Thông báo
+                    composable(Routes.NOTIFICATIONS) {
+                        com.example.foodmapvn.ui.notification.NotificationsRoute(
+                            repository = container.notificationRepository,
+                            onBack = { navController.popBackStack() },
+                            onPlaceClick = { navController.navigate(Routes.place(it)) },
+                        )
+                    }
+                    composable(Routes.SUGGESTION_MINE) {
+                        com.example.foodmapvn.ui.suggestion.MySuggestionsRoute(
+                            repository = container.suggestionRepository,
+                            onBack = { navController.popBackStack() },
+                            onNewSuggestionClick = openNewSuggestion,
+                        )
+                    }
                     // thêm ( Routes.SUGGESTION_MINE, Routes.REPORT, Routes.NOTIFICATIONS)
 
                 }

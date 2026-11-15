@@ -7,12 +7,14 @@ import com.example.foodmapvn.data.model.AdminReportStatus
 import com.example.foodmapvn.data.model.AdminStats
 import com.example.foodmapvn.data.model.AdminSuggestion
 import com.example.foodmapvn.data.model.AdminUser
+import com.example.foodmapvn.data.model.LatLng
+import com.example.foodmapvn.data.model.NearbyPlace
 import com.example.foodmapvn.data.model.SuggestionStatus
 import kotlinx.coroutines.flow.Flow
 
 /**
- *  (Người 3 – Nhật): Tổng quan, Duyệt quán, Báo cáo, Đặc sản & vùng, Người dùng.
- *  các thao tác ghi đều cần users/{uid}.role == "admin" (xem firebase/firestore.rules).
+ * Nghiệp vụ Quản trị (Người 3 – Nhật): Tổng quan, Duyệt quán, Báo cáo, Đặc sản & vùng, Người dùng.
+ * Mọi thao tác ghi đều cần users/{uid}.role == "admin" (xem firebase/firestore.rules).
  */
 interface AdminRepository {
     // UC-20 Tổng quan
@@ -44,4 +46,18 @@ interface AdminRepository {
     // Người dùng
     fun getUsers(): Flow<List<AdminUser>>
     suspend fun setUserLocked(uid: String, locked: Boolean): Result<Unit>
+
+    // ----- bổ sung theo Figma / đặc tả -----
+    /** Tên hiển thị của Admin đang đăng nhập (lời chào ở Tổng quan). */
+    fun getAdminName(): Flow<String>
+
+    /** Quán đã có trong bán kính [radiusM] mét quanh vị trí đề xuất (mặc định 15 m = duplicatePlaceRadiusMeters). */
+    suspend fun findNearbyPlaces(regionId: String, location: LatLng, radiusM: Double = 15.0): List<NearbyPlace>
+
+    /** Nút "Sửa" ở chi tiết đề xuất: Admin chỉnh thông tin trước khi duyệt. */
+    suspend fun updateSuggestion(item: AdminSuggestion, name: String, address: String, price: Long?, openHours: String?): Result<Unit>
+
+    suspend fun updateDish(dishId: String, name: String, unit: String): Result<Unit>
+    suspend fun addRegion(name: String, lat: Double, lng: Double): Result<Unit>
+    suspend fun updateRegion(regionId: String, name: String, visible: Boolean): Result<Unit>
 }

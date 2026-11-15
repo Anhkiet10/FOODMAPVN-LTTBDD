@@ -52,7 +52,7 @@ fun DocumentSnapshot.toNotificationItem(): NotificationItem = NotificationItem(
 
 // ----- Admin: vùng, món, người dùng -----
 fun DocumentSnapshot.toAdminRegion(): AdminRegion =
-    AdminRegion(id, str("name") ?: id, int("dishCount"), int("placeCount"))
+    AdminRegion(id, str("name") ?: id, int("dishCount"), int("placeCount"), str("status") != "hidden")
 
 fun DocumentSnapshot.toAdminDish(): AdminDish {
     val lo = int("priceP25") / 1000
@@ -62,6 +62,7 @@ fun DocumentSnapshot.toAdminDish(): AdminDish {
         priceText = if (hi > 0) "$lo – ${hi}k" else "—",
         placeCount = int("verifiedPlaceCount"),
         visible = str("status") != "hidden",
+        unit = str("unit") ?: "tô",
     )
 }
 

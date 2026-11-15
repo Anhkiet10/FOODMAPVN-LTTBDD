@@ -11,6 +11,9 @@ import com.example.foodmapvn.data.model.AdminReportStatus
 import com.example.foodmapvn.data.model.AdminStats
 import com.example.foodmapvn.data.model.AdminSuggestion
 import com.example.foodmapvn.data.model.AdminUser
+import com.example.foodmapvn.data.model.LatLng
+import com.example.foodmapvn.data.model.NearbyPlace
+import com.example.foodmapvn.domain.GeoUtils
 import com.example.foodmapvn.data.model.SuggestionStatus
 import com.example.foodmapvn.data.repository.AdminRepository
 import com.google.firebase.Timestamp
@@ -24,6 +27,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
@@ -33,6 +39,7 @@ import kotlinx.coroutines.flow.map
  * Admin trên Firestore. Mọi lệnh ghi đều phải qua firestore.rules > isAdmin()
  * (tài khoản có users/{uid}.role == "admin"); nếu không sẽ báo PERMISSION_DENIED.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class FirestoreAdminRepository(
     private val db: FirebaseFirestore,
     private val auth: FirebaseAuth,
@@ -71,21 +78,33 @@ class FirestoreAdminRepository(
 
     // ---------- UC-20 Tổng quan ----------
     override fun getStats(): Flow<AdminStats> {
-        val weekAgo = Timestamp(Date(System.currentTimeMillis() - 7L * 24 * 3600 * 1000))
+        val now = System.currentTimeMillis()
+        val weekAgoMs = now - 7L * 24 * 3600 * 1000
+        val twoWeeksAgo = Timestamp(Date(now - 14L * 24 * 3600 * 1000))
+        val startOfToday = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
         val flows = listOf(
             db.collection(FirestorePaths.SUGGESTIONS).whereEqualTo("status", "pending").asFlow(),
             db.collection(FirestorePaths.REPORTS).whereEqualTo("status", "pending").asFlow(),
             db.collection(FirestorePaths.PLACES).whereEqualTo("priceWarning", true).asFlow(),
-            db.collection(FirestorePaths.REVIEWS).whereGreaterThan("createdAt", weekAgo).asFlow(),
+            db.collection(FirestorePaths.REVIEWS).whereGreaterThan("createdAt", twoWeeksAgo).asFlow(),
             db.collection(FirestorePaths.REGIONS).asFlow(),
             db.collection(FirestorePaths.DISHES).asFlow(),
             db.collection(FirestorePaths.USERS).asFlow(),
         )
         return combine(flows) { s ->
+            // createdAt chưa có (server đang ghi) -> coi là mới nhất
+            fun ms(d: DocumentSnapshot): Long = (d.get("createdAt") as? Timestamp)?.toDate()?.time ?: Long.MAX_VALUE
+            val thisWeek = s[3].documents.count { ms(it) >= weekAgoMs }
             AdminStats(
                 pendingSuggestions = s[0].size(), newReports = s[1].size(), warnedPlaces = s[2].size(),
-                reviewsThisWeek = s[3].size(), regionCount = s[4].size(), dishCount = s[5].size(),
+                reviewsThisWeek = thisWeek, regionCount = s[4].size(), dishCount = s[5].size(),
                 userCount = s[6].size(),
+                pendingToday = s[0].documents.count { ms(it) >= startOfToday },
+                warnedRegions = s[2].documents.mapNotNull { it.get("regionId") as? String }.distinct().size,
+                reviewsLastWeek = s[3].size() - thisWeek,
             )
         }.catch { emit(AdminStats()) }
     }
@@ -264,13 +283,75 @@ class FirestoreAdminRepository(
     }
 
     // ---------- Người dùng ----------
-    override fun getUsers(): Flow<List<AdminUser>> =
-        db.collection(FirestorePaths.USERS).asFlow().map { snap ->
-            snap.documents.map { it.toAdminUser() }.sortedBy { it.name }
-        }.catch { emit(emptyList()) }
+    override fun getUsers(): Flow<List<AdminUser>> = combine(
+        db.collection(FirestorePaths.USERS).asFlow(),
+        db.collection(FirestorePaths.REPORTS).whereEqualTo("status", "pending").asFlow(),
+    ) { users, reports ->
+        // "Bị báo cáo" = chủ của đánh giá đang bị báo cáo
+        val counts = HashMap<String, Int>()
+        reports.documents.filter { it.get("targetType") == "REVIEW" }.forEach { r ->
+            val reviewId = r.get("targetId") as? String ?: return@forEach
+            val owner = runCatching {
+                db.collection(FirestorePaths.REVIEWS).document(reviewId).get().awaitTask().get("userId") as? String
+            }.getOrNull()
+            if (owner != null) counts[owner] = (counts[owner] ?: 0) + 1
+        }
+        users.documents.map { it.toAdminUser().copy(reportCount = counts[it.id] ?: 0) }.sortedBy { it.name }
+    }.catch { emit(emptyList()) }
 
     override suspend fun setUserLocked(uid: String, locked: Boolean): Result<Unit> = attempt {
         db.collection(FirestorePaths.USERS).document(uid)
             .update("status", if (locked) "locked" else "active").awaitTask()
+    }
+
+    // ---------- bổ sung theo Figma / đặc tả ----------
+    override fun getAdminName(): Flow<String> = auth.uidFlow().flatMapLatest { uid ->
+        if (uid == null) flowOf("")
+        else db.collection(FirestorePaths.USERS).document(uid).asFlow().map { (it.get("name") as? String) ?: "" }
+    }.catch { emit("") }
+
+    override suspend fun findNearbyPlaces(regionId: String, location: LatLng, radiusM: Double): List<NearbyPlace> = try {
+        db.collection(FirestorePaths.PLACES).whereEqualTo("regionId", regionId).get().awaitTask().documents
+            .mapNotNull { d ->
+                val g = d.get("location") as? GeoPoint ?: return@mapNotNull null
+                val dist = GeoUtils.distanceMeters(location.latitude, location.longitude, g.latitude, g.longitude)
+                if (dist <= radiusM) NearbyPlace((d.get("name") as? String) ?: "—", dist.toInt()) else null
+            }.sortedBy { it.distanceM }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        emptyList()
+    }
+
+    override suspend fun updateSuggestion(item: AdminSuggestion, name: String, address: String, price: Long?, openHours: String?): Result<Unit> = attempt {
+        require(name.isNotBlank()) { "Tên quán không được để trống" }
+        require(address.isNotBlank()) { "Địa chỉ không được để trống" }
+        val data = hashMapOf<String, Any>("name" to name.trim(), "address" to address.trim())
+        price?.let { data["price"] = it }
+        openHours?.takeIf { it.isNotBlank() }?.let { data["openHours"] = it.trim() }
+        db.collection(FirestorePaths.SUGGESTIONS).document(item.suggestion.id).update(data).awaitTask()
+    }
+
+    override suspend fun updateDish(dishId: String, name: String, unit: String): Result<Unit> = attempt {
+        require(name.isNotBlank()) { "Cần nhập tên món" }
+        db.collection(FirestorePaths.DISHES).document(dishId)
+            .update(mapOf("name" to name.trim(), "unit" to unit)).awaitTask()
+    }
+
+    override suspend fun addRegion(name: String, lat: Double, lng: Double): Result<Unit> = attempt {
+        require(name.isNotBlank()) { "Cần nhập tên vùng" }
+        // Đủ trường bắt buộc của isValidRegion (firestore.rules)
+        db.collection(FirestorePaths.REGIONS).document().set(
+            mapOf(
+                "name" to name.trim(), "center" to GeoPoint(lat, lng),
+                "dishCount" to 0, "placeCount" to 0, "status" to "active",
+            ),
+        ).awaitTask()
+    }
+
+    override suspend fun updateRegion(regionId: String, name: String, visible: Boolean): Result<Unit> = attempt {
+        require(name.isNotBlank()) { "Cần nhập tên vùng" }
+        db.collection(FirestorePaths.REGIONS).document(regionId)
+            .update(mapOf("name" to name.trim(), "status" to if (visible) "active" else "hidden")).awaitTask()
     }
 }

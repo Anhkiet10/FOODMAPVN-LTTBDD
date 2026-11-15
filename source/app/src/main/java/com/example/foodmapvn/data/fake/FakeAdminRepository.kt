@@ -8,15 +8,18 @@ import com.example.foodmapvn.data.model.AdminStats
 import com.example.foodmapvn.data.model.AdminSuggestion
 import com.example.foodmapvn.data.model.AdminUser
 import com.example.foodmapvn.data.model.LatLng
+import com.example.foodmapvn.data.model.NearbyPlace
 import com.example.foodmapvn.data.model.PlaceSuggestion
 import com.example.foodmapvn.data.model.SuggestionStatus
 import com.example.foodmapvn.data.repository.AdminRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 
+/** Dữ liệu giả cho màn Admin (chạy khi chưa có google-services.json). Mẫu theo Figma. */
 class FakeAdminRepository : AdminRepository {
 
     private fun sug(id: String, name: String, dish: String, by: String, price: Long, hours: String, region: String = "Huế") =
@@ -52,7 +55,7 @@ class FakeAdminRepository : AdminRepository {
         )
     )
 
-    private val regions = listOf(AdminRegion("hue", "Huế", 5, 12), AdminRegion("ct", "Cần Thơ", 4, 9))
+    private val regions = MutableStateFlow(listOf(AdminRegion("hue", "Huế", 5, 12), AdminRegion("ct", "Cần Thơ", 4, 9)))
     private val dishes = MutableStateFlow(
         listOf(
             "hue" to AdminDish("d1", "Bún bò Huế", "35 – 50k", 5, true),
@@ -67,7 +70,7 @@ class FakeAdminRepository : AdminRepository {
         listOf(
             AdminUser("u1", "Minh Thư", "minhthu@gmail.com", false, false),
             AdminUser("u2", "Quốc Huy", "quochuy@gmail.com", false, true),
-            AdminUser("u3", "Huy Hoàng", "huyhoang@gmail.com", false, false),
+            AdminUser("u3", "Huy Hoàng", "huyhoang@gmail.com", false, false, 3),
             AdminUser("u4", "Minh Thuận", "minhthuan@gmail.com", false, false),
             AdminUser("u5", "Phong Quý", "phongquy@gmail.com", false, false),
         )
@@ -80,7 +83,8 @@ class FakeAdminRepository : AdminRepository {
                 newReports = r.count { it.status == AdminReportStatus.PENDING },
                 warnedPlaces = 3,
                 reviewsThisWeek = 50,
-                regionCount = regions.size,
+                regionCount = regions.value.size,
+                pendingToday = 2, warnedRegions = 1, reviewsLastWeek = 40,
                 dishCount = d.size,
                 userCount = u.size,
             )
@@ -117,7 +121,7 @@ class FakeAdminRepository : AdminRepository {
     override suspend fun markPlaceClosed(report: AdminReport) = setReport(report, AdminReportStatus.RESOLVED)
     override suspend fun resolveReport(report: AdminReport) = setReport(report, AdminReportStatus.RESOLVED)
 
-    override fun getRegions(): Flow<List<AdminRegion>> = MutableStateFlow(regions)
+    override fun getRegions(): Flow<List<AdminRegion>> = regions
 
     override fun getDishes(regionId: String): Flow<List<AdminDish>> =
         dishes.map { list -> list.filter { it.first == regionId }.map { it.second } }
@@ -137,6 +141,41 @@ class FakeAdminRepository : AdminRepository {
 
     override suspend fun setUserLocked(uid: String, locked: Boolean): Result<Unit> {
         users.update { list -> list.map { if (it.uid == uid) it.copy(locked = locked) else it } }
+        return Result.success(Unit)
+    }
+
+    override fun getAdminName(): Flow<String> = flowOf("Nhật")
+
+    override suspend fun findNearbyPlaces(regionId: String, location: LatLng, radiusM: Double): List<NearbyPlace> =
+        listOf(NearbyPlace("Bún bò Huế O Hà", 9))
+
+    override suspend fun updateSuggestion(item: AdminSuggestion, name: String, address: String, price: Long?, openHours: String?): Result<Unit> {
+        if (name.isBlank() || address.isBlank()) return Result.failure(Exception("Tên và địa chỉ không được để trống"))
+        suggestions.update { list ->
+            list.map {
+                if (it.suggestion.id == item.suggestion.id)
+                    it.copy(suggestion = it.suggestion.copy(name = name.trim(), address = address.trim(), price = price ?: it.suggestion.price, openHours = openHours ?: it.suggestion.openHours))
+                else it
+            }
+        }
+        return Result.success(Unit)
+    }
+
+    override suspend fun updateDish(dishId: String, name: String, unit: String): Result<Unit> {
+        if (name.isBlank()) return Result.failure(Exception("Cần nhập tên món"))
+        dishes.update { list -> list.map { (r, d) -> if (d.id == dishId) r to d.copy(name = name.trim(), unit = unit) else r to d } }
+        return Result.success(Unit)
+    }
+
+    override suspend fun addRegion(name: String, lat: Double, lng: Double): Result<Unit> {
+        if (name.isBlank()) return Result.failure(Exception("Cần nhập tên vùng"))
+        regions.update { it + AdminRegion("r_${it.size + 1}", name.trim(), 0, 0, true) }
+        return Result.success(Unit)
+    }
+
+    override suspend fun updateRegion(regionId: String, name: String, visible: Boolean): Result<Unit> {
+        if (name.isBlank()) return Result.failure(Exception("Cần nhập tên vùng"))
+        regions.update { list -> list.map { if (it.id == regionId) it.copy(name = name.trim(), visible = visible) else it } }
         return Result.success(Unit)
     }
 }

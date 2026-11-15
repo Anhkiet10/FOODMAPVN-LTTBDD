@@ -80,6 +80,11 @@ fun SuggestionNewRoute(
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(state.lat, state.lng) {
+        kotlinx.coroutines.delay(600)
+        reverseGeocode(context, state.lat, state.lng)?.let { vm.autoFillAddress(it) }
+    }
 
     LaunchedEffect(state.message) {
         val msg = state.message ?: return@LaunchedEffect
@@ -330,3 +335,13 @@ private fun Step2Form(
         }
     }
 }
+
+private suspend fun reverseGeocode(context: android.content.Context, lat: Double, lng: Double): String? =
+    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        runCatching {
+            if (!android.location.Geocoder.isPresent()) return@runCatching null
+            @Suppress("DEPRECATION")
+            android.location.Geocoder(context, java.util.Locale("vi", "VN")).getFromLocation(lat, lng, 1)
+                ?.firstOrNull()?.getAddressLine(0)
+        }.getOrNull()
+    }

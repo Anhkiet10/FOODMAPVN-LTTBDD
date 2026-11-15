@@ -100,6 +100,11 @@ class SuggestionViewModel(
 
     fun setName(v: String) = _state.update { it.copy(name = v) }
     fun setAddress(v: String) = _state.update { it.copy(address = v) }
+    private var lastAutoAddress = ""
+    /** Tự điền địa chỉ từ ghim bản đồ; không ghi đè nếu người dùng đã tự gõ. */
+    fun autoFillAddress(v: String) = _state.update {
+        if (it.address.isBlank() || it.address == lastAutoAddress) { lastAutoAddress = v; it.copy(address = v) } else it
+    }
     fun setDishId(id: String) = _state.update { it.copy(selectedDishId = id) }
     fun setPriceText(v: String) = _state.update { it.copy(priceText = v.filter(Char::isDigit)) }
     fun setOpenHours(v: String) = _state.update { it.copy(openHours = v) }

@@ -8,6 +8,7 @@ import com.example.foodmapvn.data.model.AdminStats
 import com.example.foodmapvn.data.model.AdminSuggestion
 import com.example.foodmapvn.data.model.AdminUser
 import com.example.foodmapvn.data.model.Business
+import com.example.foodmapvn.data.model.NearbyPlace
 import com.example.foodmapvn.data.model.SuggestionStatus
 import com.example.foodmapvn.data.repository.AdminRepository
 import com.example.foodmapvn.data.repository.BusinessRepository
@@ -43,6 +44,8 @@ class AdminViewModel(
 
     // ----- Tổng quan -----
     val stats: StateFlow<AdminStats> = adminRepository.getStats().stateIn(scope, keep, AdminStats())
+
+    val adminName: StateFlow<String> = adminRepository.getAdminName().stateIn(scope, keep, "")
 
     // ----- Duyệt quán -----
     val suggestionTab = MutableStateFlow(SuggestionStatus.PENDING)
@@ -106,6 +109,20 @@ class AdminViewModel(
 
     fun setUserLocked(u: AdminUser, locked: Boolean) =
         act(if (locked) "Đã khóa tài khoản" else "Đã mở khóa tài khoản") { adminRepository.setUserLocked(u.uid, locked) }
+
+    // ----- Chi tiết đề xuất: quán trùng gần đó + Sửa -----
+    val nearby = MutableStateFlow<List<NearbyPlace>?>(null)   // null = đang kiểm tra
+    fun loadNearby(item: AdminSuggestion) {
+        nearby.value = null
+        scope.launch { nearby.value = adminRepository.findNearbyPlaces(item.suggestion.regionId, item.suggestion.location) }
+    }
+    fun editSuggestion(item: AdminSuggestion, name: String, address: String, price: Long?, openHours: String?) =
+        act("Đã cập nhật đề xuất") { adminRepository.updateSuggestion(item, name, address, price, openHours) }
+
+    // ----- Đặc sản & vùng: sửa món, thêm/sửa vùng -----
+    fun editDish(d: AdminDish, name: String, unit: String) = act("Đã cập nhật món") { adminRepository.updateDish(d.id, name, unit) }
+    fun addRegion(name: String, lat: Double, lng: Double) = act("Đã thêm vùng") { adminRepository.addRegion(name, lat, lng) }
+    fun editRegion(r: AdminRegion, name: String, visible: Boolean) = act("Đã cập nhật vùng") { adminRepository.updateRegion(r.id, name, visible) }
 
     fun clear() { scope.cancel() }
 }

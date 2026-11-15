@@ -65,6 +65,9 @@ data class AdminStats(
     val newReports: Int = 0,
     val warnedPlaces: Int = 0,
     val reviewsThisWeek: Int = 0,
+    val pendingToday: Int = 0,
+    val warnedRegions: Int = 0,
+    val reviewsLastWeek: Int = 0,
     val regionCount: Int = 0,
     val dishCount: Int = 0,
     val userCount: Int = 0,
@@ -108,7 +111,7 @@ data class AdminReport(
         }
 }
 
-data class AdminRegion(val id: String, val name: String, val dishCount: Int, val placeCount: Int)
+data class AdminRegion(val id: String, val name: String, val dishCount: Int, val placeCount: Int, val visible: Boolean = true)
 
 data class AdminDish(
     val id: String,
@@ -116,6 +119,7 @@ data class AdminDish(
     val priceText: String,
     val placeCount: Int,
     val visible: Boolean,
+    val unit: String = "tô",
 )
 
 data class AdminUser(
@@ -124,4 +128,9 @@ data class AdminUser(
     val email: String,
     val isAdmin: Boolean,
     val locked: Boolean,
+    /** Số báo cáo đang chờ xử lý nhắm vào đánh giá của người này. */
+    val reportCount: Int = 0,
 )
+
+/** Quán đã có gần vị trí đề xuất (cảnh báo trùng khi duyệt – UC-17). */
+data class NearbyPlace(val name: String, val distanceM: Int)
